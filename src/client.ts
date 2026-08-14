@@ -1,11 +1,26 @@
 // client.js - Client for WiFi devices
-import net from 'net';
-import dgram from 'dgram';
-import { EventEmitter } from 'events';
-import { PORTS, DISCOVERY_MSG, FOUND_MSG, getSubnet } from './utils.js';
+import net, { type Socket } from 'node:net';
+import dgram, { type Socket as UdpSocket } from 'node:dgram';
+import { EventEmitter } from 'node:events';
+import { PORTS, DISCOVERY_MSG, FOUND_MSG, getSubnet, type MessageEnvelope } from './utils.js';
+
+interface LanClientOptions {
+  serverAddress?: string;
+}
 
 export class LanClient extends EventEmitter {
-  constructor(options = {}) {
+  fixedAddress: string | null;
+  serverAddress: string | null;
+  serverPort: number;
+  connection: Socket | null;
+  discoveryTimeout: number;
+  retryDelay: number;
+  isStopped: boolean;
+  isSearching: boolean;
+  _discoveryTimer: ReturnType<typeof setTimeout> | null;
+  _reconnectTimer: ReturnType<typeof setTimeout> | null;
+
+  constructor(options: LanClientOptions = {}) {
     super();
     this.fixedAddress = options.serverAddress || null;
     this.serverAddress = this.fixedAddress;
@@ -19,7 +34,7 @@ export class LanClient extends EventEmitter {
     this._reconnectTimer = null;
   }
 
-  discover() {
+  discover(): void {
     if (this.isStopped) return;
     
     if (!this.isSearching) {
@@ -27,7 +42,7 @@ export class LanClient extends EventEmitter {
       this.isSearching = true;
     }
 
-    const discoverySocket = dgram.createSocket('udp4');
+    const discoverySocket: UdpSocket = dgram.createSocket('udp4');
     const subnet = getSubnet();
     const msg = Buffer.from(DISCOVERY_MSG);
 
@@ -58,7 +73,7 @@ export class LanClient extends EventEmitter {
           this.connect();
         }
       } catch (err) {
-        this.emit('debug', `Invalid discovery response: ${err.message}`);
+        this.emit('debug', `Invalid discovery response: ${err instanceof Error ? err.message : String(err)}`);
       }
     });
 
@@ -67,8 +82,9 @@ export class LanClient extends EventEmitter {
     });
   }
 
-  connect(address = this.serverAddress) {
+  connect(address: string | null = this.serverAddress): void {
     if (this.connection || this.isStopped) return;
+    if (!address) return;
     this.serverAddress = address;
 
     this.connection = net.createConnection({ host: address, port: this.serverPort }, () => {
@@ -81,21 +97,21 @@ export class LanClient extends EventEmitter {
     this.connection.on('data', (data) => {
       buffer += data;
       const lines = buffer.split('\n');
-      buffer = lines.pop();
+      buffer = lines.pop() ?? '';
 
       lines.forEach(line => {
         if (line.trim()) {
           try {
-            const envelope = JSON.parse(line);
+            const envelope = JSON.parse(line) as MessageEnvelope;
             this.emit('message', envelope);
           } catch (err) {
-            this.emit('debug', `Failed to parse message: ${err.message}`);
+            this.emit('debug', `Failed to parse message: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
       });
     });
 
-    const handleDisconnect = (reason) => {
+    const handleDisconnect = (reason: string): void => {
       if (this.connection) {
         this.connection.destroy();
         this.connection = null;
@@ -111,7 +127,7 @@ export class LanClient extends EventEmitter {
         this.serverAddress = null;
       }
 
-      clearTimeout(this._reconnectTimer);
+      if (this._reconnectTimer) clearTimeout(this._reconnectTimer);
       this._reconnectTimer = setTimeout(() => this.start(), this.retryDelay);
     };
 
@@ -125,7 +141,7 @@ export class LanClient extends EventEmitter {
     });
   }
 
-  send(text) {
+  send(text: string): boolean {
     if (this.connection && this.connection.writable) {
       this.connection.write(text + '\n');
       return true;
@@ -133,7 +149,7 @@ export class LanClient extends EventEmitter {
     return false;
   }
 
-  start() {
+  start(): void {
     this.isStopped = false;
     if (this.serverAddress) {
       this.connect();
@@ -142,11 +158,11 @@ export class LanClient extends EventEmitter {
     }
   }
 
-  stop() {
+  stop(): void {
     this.isStopped = true;
     this.isSearching = false;
-    clearTimeout(this._discoveryTimer);
-    clearTimeout(this._reconnectTimer);
+    if (this._discoveryTimer) clearTimeout(this._discoveryTimer);
+    if (this._reconnectTimer) clearTimeout(this._reconnectTimer);
     if (this.connection) {
       this.connection.end();
       this.connection.destroy();

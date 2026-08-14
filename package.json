@@ -3,20 +3,23 @@
   "version": "2.1.0",
   "description": "A local area network chat application for WiFi devices",
   "type": "module",
-  "main": "src/main.js",
+  "main": "dist/main.js",
   "bin": {
-    "lantext": "./src/main.js"
+    "lantext": "./dist/main.js"
   },
   "files": [
-    "src/",
+    "dist/",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
-    "start": "node src/main.js",
-    "client": "node src/client.js",
-    "hotspot": "node src/hotspot.js",
-    "dev": "DEBUG=true node src/main.js"
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build",
+    "start": "node dist/main.js",
+    "client": "node dist/client.js",
+    "hotspot": "node dist/hotspot.js",
+    "dev": "npm run build && DEBUG=true node dist/main.js"
   },
   "keywords": [
     "chat",
@@ -45,5 +48,9 @@
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",
     "ora": "^9.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
   }
 }

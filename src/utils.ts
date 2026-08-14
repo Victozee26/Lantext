@@ -1,5 +1,11 @@
 // utils.js - Shared utilities and constants
-import os from 'os';
+import os from 'node:os';
+
+export interface MessageEnvelope {
+  sender: string;
+  timestamp: number;
+  text: string;
+}
 
 export const PORTS = {
   TCP: 41236,
@@ -12,7 +18,7 @@ export const FOUND_MSG = 'SERVER_FOUND';
 export function getLocalIP() {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
+    for (const iface of interfaces[name] ?? []) {
       if (iface.family === 'IPv4' && !iface.internal) {
         return iface.address;
       }
@@ -26,9 +32,9 @@ export function getSubnet() {
   return ip.split('.').slice(0, 3).join('.');
 }
 
-export function createEnvelope(sender, text) {
+export function createEnvelope(sender: string | undefined, text: string): MessageEnvelope {
   return {
-    sender,
+    sender: sender ?? 'UNKNOWN',
     timestamp: Date.now(),
     text,
   };

@@ -20,12 +20,12 @@
   terminal presentation in focused modules.
 - Preserve the existing boundaries unless a change explicitly requires
   restructuring them:
-  - `src/main.js` handles CLI dispatch and interactive mode selection.
-  - `src/client-mode.js` and `src/server-mode.js` coordinate runtime modes.
-  - `src/client.js` and `src/hotspot.js` own network behavior and lifecycle.
-  - `src/input.js` owns terminal and piped-input behavior.
-  - `src/ui.js` owns terminal rendering and display helpers.
-  - `src/utils.js` owns shared constants, network helpers, and message shape.
+  - `src/main.ts` handles CLI dispatch and interactive mode selection.
+  - `src/client-mode.ts` and `src/server-mode.ts` coordinate runtime modes.
+  - `src/client.ts` and `src/hotspot.ts` own network behavior and lifecycle.
+  - `src/input.ts` owns terminal and piped-input behavior.
+  - `src/ui.ts` owns terminal rendering and display helpers.
+  - `src/utils.ts` owns shared constants, network helpers, and message shape.
 
 ## Development Approach
 
@@ -121,7 +121,7 @@ Every module, class, and function should:
 ## Verification
 
 - There is currently no automated test script in `package.json`.
-- For JavaScript changes, run `node --check` on every changed JavaScript file.
+- For TypeScript changes, run `npm run build` and `node --check` on emitted JavaScript files.
 - Run the relevant manual smoke check when behavior permits:
   - `npm start` for interactive mode selection
   - `npm run client` for client mode
