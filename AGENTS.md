@@ -89,7 +89,7 @@ Before modifying anything:
   a deliberate, end-to-end change.
 - Clean up sockets, timers, readline interfaces, and process handlers on every
   shutdown or retry path.
-- Keep terminal rendering concerns in `src/ui.js`; do not bury network or
+- Keep terminal rendering concerns in `src/ui.ts`; do not bury network or
   protocol behavior in presentation helpers.
 - Keep environment-variable behavior (`DEBUG` and `SERVER`) compatible with
   the README unless the documentation is updated in the same change.

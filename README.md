@@ -24,16 +24,29 @@ Sending a quick message from your phone to your laptop or to a colleague’s dev
 
 ## Installation
 
-### Global Installation (Recommended)
+### Install from npm
 
 ```bash
 npm install -g lantext
+lantext
 ```
 
-### Local Installation
+For a local installation, install the package without the global flag and run
+it with `npx`:
 
 ```bash
 npm install lantext
+npx lantext
+```
+
+### Run from source
+
+```bash
+git clone https://github.com/Victozee26/LanText.git
+cd LanText
+npm install
+npm run build
+npm start
 ```
 
 ## Usage
@@ -62,6 +75,13 @@ lantext wifi
 lantext hotspot
 # or
 lantext server
+```
+
+When running from a source checkout, use `npm start -- <mode>` after building:
+
+```bash
+npm start -- client
+npm start -- hotspot
 ```
 
 ### Multi-line Messages
@@ -98,14 +118,39 @@ SERVER=192.168.1.5 lantext client
 
 ## Architecture
 
-LanText is built on a peer-to-peer discovery model using UDP for finding servers and TCP for reliable messaging.
+LanText uses UDP discovery to find servers on the local network and TCP for
+reliable messaging. The default ports are UDP `41237` for discovery and TCP
+`41236` for chat connections.
 
-- **Client** (`src/client.ts`): Discovers and connects to a server on the network. Implements a multi-line input buffer for seamless typing.
-- **Hotspot** (`src/hotspot.ts`): Runs both a TCP server and a discovery responder. It broadcasts messages to all connected clients.
-- **Main** (`src/main.ts`): CLI entry point that handles interactive mode and argument parsing.
-- **UI** (`src/ui.ts`): Shared module for consistent terminal styling, banners, and message formatting.
+The TypeScript source is compiled from `src/` to `dist/` before the CLI runs.
 
-For a deep dive into the technical implementation, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+- **Main** (`src/main.ts`): CLI entry point, argument parsing, and interactive mode selection.
+- **Client mode** (`src/client-mode.ts`): Coordinates client networking, input, and terminal updates.
+- **Server mode** (`src/server-mode.ts`): Coordinates hotspot networking, input, and terminal updates.
+- **Client transport** (`src/client.ts`): Discovers servers, manages TCP connections, parses incoming messages, and reconnects.
+- **Hotspot transport** (`src/hotspot.ts`): Runs the TCP server, answers UDP discovery, and broadcasts messages.
+- **Input** (`src/input.ts`): Handles terminal, pasted, multi-line, and piped input.
+- **UI** (`src/ui.ts`): Provides terminal styling, banners, status lines, and message formatting.
+- **Utilities** (`src/utils.ts`): Defines ports, discovery messages, network helpers, and message envelopes.
+
+Messages use newline-delimited JSON envelopes with `sender`, `timestamp`, and
+`text` fields.
+
+## Development
+
+```bash
+# Compile TypeScript to dist/
+npm run build
+
+# Type-check without emitting files
+npm run typecheck
+
+# Build and start with debug logging enabled
+npm run dev
+```
+
+There is currently no automated test script in `package.json`. Network changes
+should be verified with a client and hotspot on the appropriate local devices.
 
 ## Configuration
 
@@ -117,5 +162,4 @@ Environment variables:
 ## License
 
 MIT
-
 
