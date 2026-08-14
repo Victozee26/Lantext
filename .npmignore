@@ -1,4 +1,6 @@
 # Development files
+src/
+tsconfig.json
 works/
 .git/
 .github/

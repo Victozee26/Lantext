@@ -100,10 +100,10 @@ SERVER=192.168.1.5 lantext client
 
 LanText is built on a peer-to-peer discovery model using UDP for finding servers and TCP for reliable messaging.
 
-- **Client** (`src/client.js`): Discovers and connects to a server on the network. Implements a multi-line input buffer for seamless typing.
-- **Hotspot** (`src/hotspot.js`): Runs both a TCP server and a discovery responder. It broadcasts messages to all connected clients.
-- **Main** (`src/main.js`): CLI entry point that handles interactive mode and argument parsing.
-- **UI** (`src/ui.js`): Shared module for consistent terminal styling, banners, and message formatting.
+- **Client** (`src/client.ts`): Discovers and connects to a server on the network. Implements a multi-line input buffer for seamless typing.
+- **Hotspot** (`src/hotspot.ts`): Runs both a TCP server and a discovery responder. It broadcasts messages to all connected clients.
+- **Main** (`src/main.ts`): CLI entry point that handles interactive mode and argument parsing.
+- **UI** (`src/ui.ts`): Shared module for consistent terminal styling, banners, and message formatting.
 
 For a deep dive into the technical implementation, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
@@ -117,6 +117,5 @@ Environment variables:
 ## License
 
 MIT
-
 
 

@@ -1,11 +1,14 @@
 // input.js - Multi-line input handling with paste detection
-import readline from 'readline';
+import readline, { type Interface } from 'node:readline';
+
+type MessageHandler = (message: string) => void;
+type PromptProvider = () => string;
 
 /**
  * Processes the message buffer for TTY input.
  * Handles paste detection and double-enter to send.
  */
-function processBuffer(messageBuffer, onMessage) {
+function processBuffer(messageBuffer: string[], onMessage: MessageHandler): string[] {
   const lastLine = messageBuffer[messageBuffer.length - 1];
   const isLastLineEmpty = lastLine !== undefined && lastLine.trim() === '';
 
@@ -33,9 +36,9 @@ function processBuffer(messageBuffer, onMessage) {
 /**
  * Sets up the readline interface for TTY input.
  */
-function setupTTYInput(onMessage, getPrompt) {
-  let messageBuffer = [];
-  let pasteTimeout = null;
+function setupTTYInput(onMessage: MessageHandler, getPrompt?: PromptProvider): Interface {
+  let messageBuffer: string[] = [];
+  let pasteTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -65,7 +68,7 @@ function setupTTYInput(onMessage, getPrompt) {
 /**
  * Sets up traditional stdin handling for piped input.
  */
-function setupPipedInput(onMessage) {
+function setupPipedInput(onMessage: MessageHandler): void {
   process.stdin.setEncoding('utf8');
   let pipeBuffer = '';
 
@@ -83,7 +86,7 @@ function setupPipedInput(onMessage) {
   });
 }
 
-export function setupInput(onMessage, getPrompt) {
+export function setupInput(onMessage: MessageHandler, getPrompt?: PromptProvider): Interface | null {
   if (process.stdin.isTTY) {
     return setupTTYInput(onMessage, getPrompt);
   } else {

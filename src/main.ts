@@ -9,7 +9,7 @@ import { startHotspot } from './server-mode.js';
 const args = process.argv.slice(2);
 const mode = args[0];
 
-async function askMode() {
+async function askMode(): Promise<void> {
   showBanner();
   intro(theme.bold('Choose your connection mode'));
 
@@ -43,7 +43,7 @@ async function askMode() {
   }
 }
 
-async function run(mode) {
+async function run(mode: string | undefined): Promise<void> {
   process.stdout.write('\x1Bc');
   switch (mode) {
     case 'client':

@@ -2,7 +2,7 @@
 import chalk from 'chalk';
 import boxen from 'boxen';
 import ora from 'ora';
-import { getLocalIP } from './utils.js';
+import { getLocalIP, type MessageEnvelope } from './utils.js';
 
 // ─── Color Theme ───────────────────────────────────────────────
 export const theme = {
@@ -29,7 +29,7 @@ function timestamp() {
 }
 
 // ─── Banner ────────────────────────────────────────────────────
-export function showBanner(mode) {
+export function showBanner(mode?: string): void {
   const ip = getLocalIP();
   const modeLabel = mode
     ? theme.accent(`  ${mode.toUpperCase()} MODE`)
@@ -60,14 +60,14 @@ export function showBanner(mode) {
 }
 
 // ─── Status Lines ──────────────────────────────────────────────
-export function status(label, msg) {
+export function status(label: string, msg: string): void {
   const prefix = label === 'CLIENT'
     ? theme.brand(`  ● ${label}`)
     : theme.accent(`  ◆ ${label}`);
   console.log(`${prefix} ${theme.dim('│')} ${msg}`);
 }
 
-export function statusSuccess(label, msg) {
+export function statusSuccess(label: string, msg: string): void {
   const icon = theme.success('✔');
   const prefix = label === 'CLIENT'
     ? theme.brand(label)
@@ -75,7 +75,7 @@ export function statusSuccess(label, msg) {
   console.log(`  ${icon} ${prefix} ${theme.dim('│')} ${msg}`);
 }
 
-export function statusError(label, msg) {
+export function statusError(label: string, msg: string): void {
   const icon = theme.error('✖');
   const prefix = label === 'CLIENT'
     ? theme.brand(label)
@@ -83,7 +83,7 @@ export function statusError(label, msg) {
   console.log(`  ${icon} ${prefix} ${theme.dim('│')} ${theme.error(msg)}`);
 }
 
-export function statusWarn(label, msg) {
+export function statusWarn(label: string, msg: string): void {
   const icon = theme.warning('⚠');
   const prefix = label === 'CLIENT'
     ? theme.brand(label)
@@ -92,7 +92,7 @@ export function statusWarn(label, msg) {
 }
 
 // ─── Incoming Messages ────────────────────────────────────────
-export function formatIncoming(envelope) {
+export function formatIncoming(envelope: MessageEnvelope): void {
   const ts = timestamp();
   const sender = theme.sender.bold(envelope.sender);
   const divider = theme.dim('─'.repeat(40));
@@ -107,7 +107,7 @@ export function formatIncoming(envelope) {
 }
 
 // ─── Sent Messages ─────────────────────────────────────────────
-export function formatSent(text) {
+export function formatSent(text: string): void {
   const icon = theme.sent('✓');
   const ts = timestamp();
   console.log(`  ${icon} ${theme.sent('Sent')}  ${ts}`);
@@ -117,7 +117,7 @@ export function formatSent(text) {
 }
 
 // ─── Help ──────────────────────────────────────────────────────
-export function formatHelp() {
+export function formatHelp(): void {
   const title = `${theme.brand.bold('LAN')}${theme.accent.bold('Text')} ${theme.muted('v1.0.0')}`;
   const desc = theme.dim('Local Area Network Chat Application');
 
@@ -158,7 +158,7 @@ export function formatHelp() {
 }
 
 // ─── Spinner ───────────────────────────────────────────────────
-export function createSpinner(text) {
+export function createSpinner(text: string) {
   return ora({
     text,
     color: 'cyan',
@@ -172,18 +172,18 @@ export function getPrompt() {
 }
 
 // ─── Client Connect/Disconnect Badges ──────────────────────────
-export function clientConnected(clientId, totalClients) {
+export function clientConnected(clientId: string, totalClients: number): void {
   const badge = theme.success.bold(` +1 `);
   console.log(`\n  ${badge} ${theme.dim('Client connected:')} ${theme.info(clientId)} ${theme.muted(`(${totalClients} online)`)}`);
 }
 
-export function clientDisconnected(clientId, totalClients) {
+export function clientDisconnected(clientId: string, totalClients: number): void {
   const badge = theme.error.bold(` -1 `);
   console.log(`\n  ${badge} ${theme.dim('Client disconnected:')} ${theme.muted(clientId)} ${theme.muted(`(${totalClients} online)`)}`);
 }
 
 // ─── Debug ─────────────────────────────────────────────────────
-export function debug(label, msg) {
+export function debug(label: string, msg: string): void {
   if (process.env.DEBUG === 'true') {
     console.log(`  ${theme.muted(`[${label}]`)} ${theme.dim(msg)}`);
   }

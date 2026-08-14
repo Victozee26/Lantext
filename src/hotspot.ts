@@ -1,10 +1,16 @@
 // hotspot.js - Combined server + client logic for hotspot devices
-import net from 'net';
-import dgram from 'dgram';
-import { EventEmitter } from 'events';
-import { PORTS, DISCOVERY_MSG, FOUND_MSG, createEnvelope } from './utils.js';
+import net, { type Server, type Socket } from 'node:net';
+import dgram, { type Socket as UdpSocket } from 'node:dgram';
+import { EventEmitter } from 'node:events';
+import { PORTS, DISCOVERY_MSG, FOUND_MSG, createEnvelope, type MessageEnvelope } from './utils.js';
 
 export class LanServer extends EventEmitter {
+  clients: Set<Socket>;
+  messageHistory: Map<string, number>;
+  HISTORY_WINDOW: number;
+  server: Server | null;
+  discoverySocket: UdpSocket | null;
+
   constructor() {
     super();
     this.clients = new Set();
@@ -14,10 +20,10 @@ export class LanServer extends EventEmitter {
     this.discoverySocket = null;
   }
 
-  start() {
+  start(): void {
     // TCP Server
     this.server = net.createServer((socket) => {
-      const clientId = `${socket.remoteAddress}:${socket.remotePort}`;
+      const clientId = `${socket.remoteAddress ?? 'unknown'}:${socket.remotePort ?? 'unknown'}`;
       this.clients.add(socket);
       this.emit('clientConnected', clientId, this.clients.size);
 
@@ -32,7 +38,7 @@ export class LanServer extends EventEmitter {
       });
 
       socket.on('error', (err) => {
-        if (err.code !== 'ECONNRESET') {
+        if ((err as NodeJS.ErrnoException).code !== 'ECONNRESET') {
           this.emit('error', `Client error (${clientId}): ${err.message}`);
         }
       });
@@ -53,24 +59,25 @@ export class LanServer extends EventEmitter {
 
     // UDP Discovery
     this.discoverySocket = dgram.createSocket('udp4');
-    this.discoverySocket.bind(PORTS.UDP_DISCOVERY, () => {
-      this.discoverySocket.setBroadcast(true);
+    const discoverySocket = this.discoverySocket;
+    discoverySocket.bind(PORTS.UDP_DISCOVERY, () => {
+      discoverySocket.setBroadcast(true);
       this.emit('debug', `Discovery listening on ${PORTS.UDP_DISCOVERY}`);
     });
 
-    this.discoverySocket.on('message', (msg, rinfo) => {
+    discoverySocket.on('message', (msg, rinfo) => {
       if (msg.toString().trim() === DISCOVERY_MSG) {
         const response = JSON.stringify({
           type: FOUND_MSG,
           port: PORTS.TCP,
           address: '0.0.0.0',
         });
-        this.discoverySocket.send(response, 0, response.length, rinfo.port, rinfo.address);
+        discoverySocket.send(response, 0, response.length, rinfo.port, rinfo.address);
       }
     });
   }
 
-  broadcast(envelope, excludeSocket = null) {
+  broadcast(envelope: MessageEnvelope, excludeSocket: Socket | null = null): void {
     const message = JSON.stringify(envelope) + '\n';
     const messageKey = `${envelope.sender}:${envelope.text}`;
 
@@ -84,7 +91,7 @@ export class LanServer extends EventEmitter {
     });
   }
 
-  cleanHistory() {
+  cleanHistory(): void {
     const now = Date.now();
     for (const [key, timestamp] of this.messageHistory.entries()) {
       if (now - timestamp > this.HISTORY_WINDOW) {
@@ -93,13 +100,13 @@ export class LanServer extends EventEmitter {
     }
   }
 
-  send(text) {
+  send(text: string): MessageEnvelope {
     const envelope = createEnvelope('HOTSPOT', text);
     this.broadcast(envelope);
     return envelope;
   }
 
-  stop() {
+  stop(): void {
     this.clients.forEach(client => client.end());
     if (this.server) this.server.close();
     if (this.discoverySocket) this.discoverySocket.close();
