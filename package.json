@@ -45,9 +45,12 @@
   "preferGlobal": true,
   "dependencies": {
     "@clack/prompts": "^1.1.0",
+    "@opentui/core": "^0.5.6",
+    "@opentui/react": "^0.5.6",
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",
-    "ora": "^9.3.0"
+    "ora": "^9.3.0",
+    "react": "^19.2.8"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
