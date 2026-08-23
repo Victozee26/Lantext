@@ -93,6 +93,14 @@
   multi-line `envelope.text` is split on `\n` and rendered with `<br />`
   inside a single `<text>` so pasted line breaks survive layout; scroll
   feed uses `gap={1}` between bubbles.
+- Bubble copy: each bubble is `onMouseDown` double-click (400 ms) →
+  `createHostClipboard` + `createClipboard({ host, terminal:
+  createRendererClipboardAdapter(renderer) })` → `writeText(text,
+  { destination: "best-available" })` with OSC52 fallback via
+  `renderer.copyToClipboardOSC52`; success shows `THEME.success`
+  border + `bottomTitle=" copied "` for 900 ms (per-bubble state,
+  timeout cleared on unmount). Only primary button (0) triggers; bubbling
+  from inner `<text>` to outer `<box>` is intentional.
 
 ## Work Guidance
 

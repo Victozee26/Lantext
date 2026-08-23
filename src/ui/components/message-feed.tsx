@@ -22,8 +22,19 @@
 //
 // focused={false} keeps keyboard focus on the composer.
 
+import { useEffect, useRef, useState } from 'react';
+import { useRenderer } from '@opentui/react';
+import {
+  createClipboard,
+  createHostClipboard,
+  createRendererClipboardAdapter,
+  type MouseEvent,
+} from '@opentui/core';
 import type { MessageEnvelope } from '../../utils.js';
 import { THEME } from '../theme.js';
+
+const DOUBLE_CLICK_MS = 400;
+const COPIED_MS = 900;
 
 export interface MessageFeedProps {
   messages: MessageEnvelope[];
@@ -71,6 +82,73 @@ function renderMultiline(text: string) {
 }
 
 function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: boolean }) {
+  const renderer = useRenderer();
+  const lastClickRef = useRef(0);
+  const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    },
+    [],
+  );
+
+  const handleCopy = async (): Promise<void> => {
+    const text = envelope.text;
+    if (!text) return;
+    // Prefer host+terminal clipboard; fall back to OSC52 directly.
+    try {
+      const host = createHostClipboard();
+      const clipboard = createClipboard({
+        host,
+        terminal: createRendererClipboardAdapter(renderer as unknown as Parameters<typeof createRendererClipboardAdapter>[0]),
+      });
+      try {
+        const result = await clipboard.writeText(text, { destination: 'best-available' });
+        const ok = result.host.status === 'written' || result.terminal.status === 'attempted';
+        if (ok) {
+          setCopied(true);
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => setCopied(false), COPIED_MS);
+        } else {
+          // Fallback to raw OSC52
+          (renderer as unknown as { copyToClipboardOSC52?: (t: string) => boolean })?.copyToClipboardOSC52?.(text);
+          setCopied(true);
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => setCopied(false), COPIED_MS);
+        }
+      } finally {
+        // Keep provider alive briefly for Linux (see clipboard docs), then dispose.
+        setTimeout(() => {
+          clipboard.dispose().catch(() => {});
+        }, 1500);
+      }
+    } catch {
+      try {
+        (renderer as unknown as { copyToClipboardOSC52?: (t: string) => boolean })?.copyToClipboardOSC52?.(text);
+        setCopied(true);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => setCopied(false), COPIED_MS);
+      } catch {}
+    }
+  };
+
+  const handleMouseDown = (event: MouseEvent): void => {
+    if (event.button !== 0) return;
+    const now = Date.now();
+    const delta = now - lastClickRef.current;
+    lastClickRef.current = now;
+    if (delta < DOUBLE_CLICK_MS && delta > 0) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      void handleCopy();
+    }
+  };
+
+  const borderColor = copied ? THEME.success : own ? THEME.sent : THEME.border;
+  const bottomTitle = copied ? ' copied ' : undefined;
+
   if (own) {
     return (
       <box
@@ -78,9 +156,13 @@ function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: bool
         maxWidth="80%"
         borderStyle="rounded"
         border
-        borderColor={THEME.sent}
+        borderColor={borderColor}
+        title={undefined}
+        bottomTitle={bottomTitle}
+        bottomTitleAlignment="right"
         paddingLeft={2}
         paddingRight={2}
+        onMouseDown={handleMouseDown}
       >
         <text style={{ fg: THEME.sent }} wrapMode="word">
           {renderMultiline(envelope.text)}
@@ -94,11 +176,14 @@ function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: bool
       maxWidth="80%"
       borderStyle="rounded"
       border
-      borderColor={THEME.border}
+      borderColor={borderColor}
       title={` ${envelope.sender} `}
       titleColor={THEME.sender}
+      bottomTitle={bottomTitle}
+      bottomTitleAlignment="right"
       paddingLeft={2}
       paddingRight={2}
+      onMouseDown={handleMouseDown}
     >
       <text wrapMode="word">{renderMultiline(envelope.text)}</text>
     </box>
