@@ -1,20 +1,19 @@
 // message-feed.tsx - Scrollable message history rendered from transport
 // MessageEnvelope rows as messenger-style chat bubbles.
 //
-// Own-sent vs received (MARKER approach): rows whose envelope.sender matches
-// the `ownSender` prop render as right-aligned green-tinted bubbles with the
-// timestamp in the top border title; every other row renders as a
-// left-aligned slate bubble titled with the sender (purple) and a muted
-// timestamp row inside. Phase 4 note: app.tsx now always supplies ownSender
-// ('HOTSPOT' for server mode, getLocalIP() for client mode), and sent
+// Own-sent vs received: rows whose envelope.sender matches the `ownSender`
+// prop render as right-aligned green-tinted bubbles; every other row renders
+// as a left-aligned slate bubble titled with the sender (purple). Timestamps
+// are intentionally not rendered. Phase 4 note: app.tsx always supplies
+// ownSender ('HOTSPOT' for server, getLocalIP() for client), and sent
 // messages are echoed locally by use-chat-session.appendOwn — transports do
 // not loop local sends back into 'message'.
 //
 // Layout facts relied on (see AGENTS.md):
 // - Bubble boxes shrink-wrap via alignSelf ("flex-end"/"flex-start") inside
 //   the scrollbox column; maxWidth "80%" forces word wrap of long lines.
-// - The inner meta ROW (timestamp) carries explicit height={1}: nested flex
-//   rows measuring <text> children can collapse to 0 in a column layout.
+// - Bubbles are border-only (no backgroundColor) — avoids fill bleeding
+//   outside rounded corners and keeps the near-black terminal background.
 // - Content <text> nodes measure their wrapped height; wrapMode="word".
 //
 // Auto-scroll: ScrollBox `stickyScroll` + `stickyStart="bottom"` — the
@@ -39,6 +38,11 @@ export function MessageFeed({ messages, ownSender }: MessageFeedProps) {
       stickyStart="bottom"
       flexGrow={1}
       focused={false}
+      gap={1}
+      paddingLeft={1}
+      paddingRight={1}
+      paddingTop={1}
+      paddingBottom={1}
       verticalScrollbarOptions={{
         trackOptions: { foregroundColor: THEME.border },
       }}
@@ -56,7 +60,6 @@ export function MessageFeed({ messages, ownSender }: MessageFeedProps) {
 }
 
 function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: boolean }) {
-  const ts = formatTimestamp(envelope.timestamp);
   if (own) {
     return (
       <box
@@ -65,13 +68,12 @@ function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: bool
         borderStyle="rounded"
         border
         borderColor={THEME.sent}
-        backgroundColor={THEME.selfBg}
-        title={` ${ts} `}
-        titleColor={THEME.muted}
         paddingLeft={2}
         paddingRight={2}
       >
-        <text style={{ fg: THEME.sent }} wrapMode="word">{envelope.text}</text>
+        <text style={{ fg: THEME.sent }} wrapMode="word">
+          {envelope.text}
+        </text>
       </box>
     );
   }
@@ -82,25 +84,12 @@ function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: bool
       borderStyle="rounded"
       border
       borderColor={THEME.border}
-      backgroundColor={THEME.otherBg}
       title={` ${envelope.sender} `}
       titleColor={THEME.sender}
       paddingLeft={2}
       paddingRight={2}
     >
-      <box flexDirection="row" height={1}>
-        <box flexGrow={1} />
-        <text style={{ fg: THEME.muted }}>{ts}</text>
-      </box>
       <text wrapMode="word">{envelope.text}</text>
     </box>
   );
-}
-
-function formatTimestamp(timestamp: number): string {
-  const d = new Date(timestamp);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  const ss = String(d.getSeconds()).padStart(2, '0');
-  return `${hh}:${mm}:${ss}`;
 }

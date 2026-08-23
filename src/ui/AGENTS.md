@@ -71,7 +71,7 @@
   use `flexShrink={0}`; reduced terminal height must shrink the feed before
   putting editor text on a border.
 - Layout facts: nested flex rows measure 0 height in a column layout -
-  give status-bar/meta rows explicit `height={1}`; `<select>` needs explicit
+  give status-bar rows explicit `height={1}`; `<select>` needs explicit
   width/height. Feed auto-scroll uses `stickyScroll` +
   `stickyStart: "bottom"`; its scrollbar thumb is recolored via
   `verticalScrollbarOptions.trackOptions.foregroundColor`.
@@ -82,9 +82,10 @@
   (observed on 0.5.6; spans inside a single text renderable are reliable).
 - Bubble layout: bubbles shrink-wrap via `alignSelf` ("flex-end" own /
   "flex-start" incoming) inside the scrollbox column; `maxWidth: "80%"`
-  forces `wrapMode="word"` wrapping; meta (timestamp) row carries explicit
-  `height={1}`; own-bubble title = timestamp, incoming-bubble title =
-  sender name.
+  forces `wrapMode="word"` wrapping; no timestamps rendered; incoming
+  bubble title = sender name (purple), own bubble has no title; bubbles
+  are border-only with no `backgroundColor` (prevents rounded-corner bleed);
+  scroll feed uses `gap={1}` between bubbles.
 
 ## Work Guidance
 
