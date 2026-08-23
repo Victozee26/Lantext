@@ -25,14 +25,15 @@
 - `src/bin.ts` is the self-relaunching bin shim behind the global
   `lantext` command: re-execs Node with `--experimental-ffi`, forwarding
   args, SIGINT/SIGTERM, and exit codes (128 + signal number).
-  - `src/client-mode.ts` and `src/server-mode.ts` coordinate runtime modes:
-    build ChatSession adapters over the transports, run the OpenTUI chat
-    screen on TTY stdin, and the plain-output + piped-input path otherwise.
-  - `src/client.ts` and `src/hotspot.ts` own network behavior and lifecycle.
+  - `src/client-mode.ts` and `src/server-mode.ts` are thin routers (TTY vs non-TTY).
+  - `src/modes/` owns mode TUI/plain presenters (`client-tui`, `client-plain`, `server-tui`, `server-plain`).
+  - `src/adapters/` owns ChatSession translation (`client-adapter`, `server-adapter`).
+  - `src/client.ts` + `src/client/` and `src/hotspot.ts` + `src/server/` own transport facades and focused submodules (discovery, connection/broadcast, reconnect).
+  - `src/protocol/` is single source for wire contracts (`constants`, `envelope`, `codec`, `version`, `network`).
+  - `src/display/` owns plain-text display atoms (`banner`, `status`, `format`, `help`, `spinner`, `clients`, `debug`, `theme`, `box`).
+  - `src/ui.ts` is a backward-compat barrel re-exporting `src/display/*`.
+  - `src/utils.ts` is a deprecated barrel re-exporting `src/protocol/*` (remove in 2.2).
   - `src/input.ts` owns piped (non-TTY) input behavior.
-  - `src/ui.ts` owns plain-text non-TTY display helpers (help text, piped
-    output lines, debug logging).
-  - `src/utils.ts` owns shared constants, network helpers, and message shape.
 
 ## Development Approach
 
@@ -100,12 +101,13 @@ Before modifying anything:
   paths.
 - Clean up sockets, timers, readline interfaces, and process handlers on every
   shutdown or retry path.
-- Keep terminal rendering concerns in `src/ui.ts` (plain-text non-TTY
-  helpers) and `src/ui/` (OpenTUI); do not bury network or protocol behavior
+- Keep terminal rendering concerns in `src/display/` (plain-text non-TTY
+  atoms) and `src/ui/` (OpenTUI); do not bury network or protocol behavior
   in presentation helpers. Session adapters (`ChatSession` in
-  `src/ui/session-adapter.ts`) are the only channel between transports and
+  `src/ui/session-adapter.ts` via `src/adapters/*`) are the only channel between transports and
   the UI, and they buffer events emitted before the first subscriber
   attaches (`src/ui/buffered-session.ts`) so no transport event is lost.
+- Enforce strict import boundaries: `src/ui/**` may not import `node:net|dgram|os` or `src/protocol/network` directly — network/version are injected as props via `src/adapters/` + `src/modes/` + `src/ui/chat-screen.tsx` context. `src/utils.ts` is banned for new code (use `src/protocol/*`/`src/display/*`). Guarded by `eslint` + `.dependency-cruiser.cjs` (`npm run lint:deps`).
 - Keep environment-variable behavior (`DEBUG` and `SERVER`) compatible with
   the README unless the documentation is updated in the same change.
 - Update `package.json`, lockfiles, and documentation together when a change
@@ -256,14 +258,16 @@ relevant child `AGENTS.md`.
 
 ## Child DOX Index
 
+- `src/protocol/` - Wire contracts: constants, envelope, codec, version, network. Single source of truth for ports/discovery/envelope.
+- `src/display/` - Plain-text display atoms for non-TTY paths. The root document owns this scope.
+- `src/client/` + `src/server/` - Focused transport submodules (discovery, connection/broadcast). Facades `src/client.ts`/`src/hotspot.ts` own lifecycle.
+- `src/adapters/` - ChatSession adapters over transports. The root document owns this scope.
+- `src/modes/` - Mode presenters (TUI vs plain for client/server). The root document owns this scope.
 - `src/ui/` - OpenTUI React terminal UI: session adapter boundary, renderer
   runtime and shutdown ownership, chat screen, and mode-select screen. Owns
-  TTY presentation; non-TTY display stays in `src/ui.ts` under the root
+  TTY presentation; non-TTY display stays in `src/display/` under the root
   contract.
-- `src/` (outside `src/ui/`) - Application source for CLI dispatch, bin shim,
-  input, plain-text non-TTY UI helpers, network transport, and runtime mode
-  orchestration. The root document owns this scope until a narrower durable
-  boundary requires a child contract.
+- `src/` (outside above) - CLI dispatch, bin shim, input, and orchestration routers. The root document owns this scope.
 - `asset/` - Project assets. The root document owns this scope until a narrower
   durable boundary requires a child contract.
 - `plans/` - Durable implementation plans for approved multi-phase work. The

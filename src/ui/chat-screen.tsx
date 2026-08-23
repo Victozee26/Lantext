@@ -16,12 +16,25 @@ import { App } from './app.js';
 import type { ChatSession } from './session-adapter.js';
 import type { LanTextMode } from './components/header.js';
 
-export async function mountChatScreen(adapter: ChatSession, mode: LanTextMode): Promise<void> {
+export interface ChatScreenContext {
+  ownSender: string;
+  localIp: string;
+  version: string;
+}
+
+export async function mountChatScreen(
+  adapter: ChatSession,
+  mode: LanTextMode,
+  ctx: ChatScreenContext,
+): Promise<void> {
   await bootRuntime(adapter, (api: RuntimeApi) => (
     <App
       adapter={adapter}
       shutdown={() => api.teardown()}
       mode={mode}
+      ownSender={ctx.ownSender}
+      localIp={ctx.localIp}
+      version={ctx.version}
       failFast={(message) => api.failFast(message)}
     />
   ));

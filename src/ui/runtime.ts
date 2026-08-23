@@ -23,8 +23,8 @@
 // hardcoded imports of future components), and accepts an injectable `exit`
 // function so tests can observe teardown without killing the process.
 
-import { createCliRenderer, type CliRenderer, type KeyEvent } from '@opentui/core';
-import { createRoot, useKeyboard, type Root } from '@opentui/react';
+import { createCliRenderer, type CliRenderer } from '@opentui/core';
+import { createRoot, type Root } from '@opentui/react';
 import type { ReactNode } from 'react';
 import type { ChatSession } from './session-adapter.js';
 
@@ -123,18 +123,6 @@ export async function bootRuntime(
   };
 }
 
-/** Keyboard path for interactive Ctrl+C. Raw mode disables ISIG, so the
- *  key event arrives as `c` + ctrl (both in raw and kitty-keyboard
- *  parsing). Render inside the app tree; renders nothing itself. */
-export interface ShutdownKeysProps {
-  onShutdown: () => void;
-}
-
-export function ShutdownKeys({ onShutdown }: ShutdownKeysProps): null {
-  useKeyboard((key: KeyEvent) => {
-    if (key.ctrl && key.name === 'c') {
-      onShutdown();
-    }
-  });
-  return null;
-}
+// Re-export for backward compat — new code imports from './runtime/shutdown-keys.js'
+export { ShutdownKeys } from './runtime/shutdown-keys.js';
+export type { ShutdownKeysProps } from './runtime/shutdown-keys.js';

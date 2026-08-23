@@ -17,7 +17,7 @@ import { Composer } from './components/composer.js';
 import { Header, type LanTextMode } from './components/header.js';
 import { MessageFeed } from './components/message-feed.js';
 import { StatusBar } from './components/status-bar.js';
-import { getLocalIP, type MessageEnvelope } from '../utils.js';
+import type { MessageEnvelope } from '../protocol/envelope.js';
 
 export interface AppProps {
   adapter: ChatSession;
@@ -26,16 +26,21 @@ export interface AppProps {
   /** Header badge mode. Optional: Phase 4 passes it; when absent the mode is
    *  derived from session state (serverPort events -> server). */
   mode?: LanTextMode;
+  /** Sender identity for local echo and row accent; injected by orchestrator (SRP: UI is pure). */
+  ownSender: string;
+  /** Network identity for header; injected. */
+  localIp: string;
+  /** Version string for header; injected. */
+  version: string;
   /** Fatal-error sink. The renderer's own uncaughtException handler swallows
    *  throws and keeps rendering, so transport throws are routed to the
    *  runtime's failFast explicitly instead of being hidden. */
   failFast?: (message: string) => void;
 }
 
-export function App({ adapter, shutdown, mode, failFast }: AppProps) {
+export function App({ adapter, shutdown, mode, ownSender, localIp, version, failFast }: AppProps) {
   const session = useChatSession(adapter);
   const chatMode: LanTextMode = mode ?? (session.serverPort !== null ? 'server' : 'client');
-  const ownSender = chatMode === 'server' ? 'HOTSPOT' : getLocalIP();
 
   const handleSend = (text: string): boolean => {
     try {
@@ -60,7 +65,7 @@ export function App({ adapter, shutdown, mode, failFast }: AppProps) {
   return (
     <box flexDirection="column" flexGrow={1}>
       <ShutdownKeys onShutdown={shutdown} />
-      <Header mode={chatMode} />
+      <Header mode={chatMode} localIp={localIp} version={version} />
       <MessageFeed messages={session.messages} ownSender={ownSender} />
       <Composer onSubmit={handleSend} />
       <StatusBar

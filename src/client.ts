@@ -1,11 +1,19 @@
-// client.js - Client for WiFi devices
-import net, { type Socket } from 'node:net';
-import dgram, { type Socket as UdpSocket } from 'node:dgram';
-import { EventEmitter } from 'node:events';
-import { PORTS, DISCOVERY_MSG, FOUND_MSG, getSubnet, type MessageEnvelope } from './utils.js';
+// client.ts - Client for WiFi devices (facade over modular transport layers).
+// Delegates discovery, connection, and reconnect scheduling to focused submodules.
 
-interface LanClientOptions {
+import type { Socket } from 'node:net';
+import { EventEmitter } from 'node:events';
+import { PORTS } from './protocol/constants.js';
+import { encodePayload } from './protocol/codec.js';
+import { startDiscovery } from './client/discovery.js';
+import { createManagedConnection, type ManagedConnection } from './client/connection.js';
+import { createReconnectPolicy } from './client/reconnect.js';
+
+export interface LanClientOptions {
   serverAddress?: string;
+  /** @internal DI seams — injectable for tests */
+  discoveryTimeout?: number;
+  retryDelay?: number;
 }
 
 export class LanClient extends EventEmitter {
@@ -20,69 +28,62 @@ export class LanClient extends EventEmitter {
   _discoveryTimer: ReturnType<typeof setTimeout> | null;
   _reconnectTimer: ReturnType<typeof setTimeout> | null;
 
+  #managed: ManagedConnection | null = null;
+  #discoveryCleanup: (() => void) | null = null;
+  #reconnect = createReconnectPolicy(2000);
+
   constructor(options: LanClientOptions = {}) {
     super();
     this.fixedAddress = options.serverAddress || null;
     this.serverAddress = this.fixedAddress;
     this.serverPort = PORTS.TCP;
     this.connection = null;
-    this.discoveryTimeout = 5000;
-    this.retryDelay = 2000;
+    this.discoveryTimeout = options.discoveryTimeout ?? 5000;
+    this.retryDelay = options.retryDelay ?? 2000;
     this.isStopped = false;
     this.isSearching = false;
     this._discoveryTimer = null;
     this._reconnectTimer = null;
+    this.#reconnect = createReconnectPolicy(this.retryDelay);
   }
 
   discover(): void {
     if (this.isStopped) return;
-    
     if (!this.isSearching) {
       this.emit('status', 'Searching for LAN Chat Server...');
       this.isSearching = true;
     }
 
-    const discoverySocket: UdpSocket = dgram.createSocket('udp4');
-    const subnet = getSubnet();
-    const msg = Buffer.from(DISCOVERY_MSG);
-
     let found = false;
-    const timeout = setTimeout(() => {
-      discoverySocket.close();
-      if (!found && !this.isStopped) {
-        // Retry discovery without emitting error to avoid UI spam
-        this._discoveryTimer = setTimeout(() => this.discover(), 1000);
-      }
-    }, this.discoveryTimeout);
-
-    // Scan subnet
-    for (let i = 1; i <= 254; i++) {
-      discoverySocket.send(msg, 0, msg.length, PORTS.UDP_DISCOVERY, `${subnet}.${i}`);
-    }
-
-    // Loopback probe: makes same-host testing deterministic
-    discoverySocket.send(msg, 0, msg.length, PORTS.UDP_DISCOVERY, '127.0.0.1');
-
-    discoverySocket.on('message', (msg, rinfo) => {
-      try {
-        const response = JSON.parse(msg.toString());
-        if (response.type === FOUND_MSG && !found) {
+    const cleanup = startDiscovery(
+      {
+        onFound: (address) => {
+          if (found) return;
           found = true;
           this.isSearching = false;
-          clearTimeout(timeout);
-          discoverySocket.close();
-          this.serverAddress = rinfo.address;
-          this.emit('discovered', this.serverAddress);
+          if (this._discoveryTimer) { clearTimeout(this._discoveryTimer); this._discoveryTimer = null; }
+          this.serverAddress = address;
+          this.emit('discovered', address);
           this.connect();
-        }
-      } catch (err) {
-        this.emit('debug', `Invalid discovery response: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    });
+        },
+        onDebug: (msg) => this.emit('debug', msg),
+      },
+      { discoveryTimeout: this.discoveryTimeout },
+    );
+    this.#discoveryCleanup = cleanup;
 
-    discoverySocket.on('error', (err) => {
-      this.emit('debug', `Discovery error: ${err.message}`);
-    });
+    // Retry if not found within timeout + grace
+    const retryTimeout = setTimeout(() => {
+      if (!found && !this.isStopped) {
+        this._discoveryTimer = setTimeout(() => this.discover(), 1000);
+      }
+    }, this.discoveryTimeout + 50);
+    // store to allow stop() to clear it
+    const prevCleanup = this.#discoveryCleanup;
+    this.#discoveryCleanup = () => {
+      clearTimeout(retryTimeout);
+      prevCleanup();
+    };
   }
 
   connect(address: string | null = this.serverAddress): void {
@@ -90,74 +91,39 @@ export class LanClient extends EventEmitter {
     if (!address) return;
     this.serverAddress = address;
 
-    this.connection = net.createConnection({ host: address, port: this.serverPort }, () => {
-      this.emit('connected', address);
-    });
+    const managed = createManagedConnection(
+      address,
+      this.serverPort,
+      {
+        onConnected: (addr) => this.emit('connected', addr),
+        onMessage: (env) => this.emit('message', env),
+        onDebug: (msg) => this.emit('debug', msg),
+        onDisconnect: (reason) => this.#handleDisconnect(reason),
+      },
+    );
+    this.#managed = managed;
+    this.connection = managed.socket;
+  }
 
-    this.connection.setEncoding('utf8');
-
-    let buffer = '';
-    this.connection.on('data', (data) => {
-      buffer += data;
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-
-      lines.forEach(line => {
-        if (line.trim()) {
-          try {
-            const envelope = JSON.parse(line) as MessageEnvelope;
-            this.emit('message', envelope);
-          } catch (err) {
-            this.emit('debug', `Failed to parse message: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        }
-      });
-    });
-
-    const handleDisconnect = (reason: string): void => {
-      if (this.connection) {
-        this.connection.destroy();
-        this.connection = null;
-      }
-      
-      if (this.isStopped) return;
-
-      this.emit('status', `Disconnected (${reason}). Reconnecting...`);
-      this.isSearching = false;
-      
-      // If we discovered the address, clear it so we re-discover
-      if (!this.fixedAddress) {
-        this.serverAddress = null;
-      }
-
-      if (this._reconnectTimer) clearTimeout(this._reconnectTimer);
-      this._reconnectTimer = setTimeout(() => this.start(), this.retryDelay);
-    };
-
-    this.connection.on('error', (err) => {
-      this.emit('debug', `Connection error: ${err.message}`);
-      handleDisconnect('error');
-    });
-
-    this.connection.on('end', () => {
-      handleDisconnect('server closed');
-    });
+  #handleDisconnect(reason: string): void {
+    if (this.connection) {
+      this.connection.destroy();
+      this.connection = null;
+      this.#managed = null;
+    }
+    if (this.isStopped) return;
+    this.emit('status', `Disconnected (${reason}). Reconnecting...`);
+    this.isSearching = false;
+    if (!this.fixedAddress) this.serverAddress = null;
+    if (this._reconnectTimer) clearTimeout(this._reconnectTimer);
+    this._reconnectTimer = null;
+    this.#reconnect.schedule(() => this.start());
   }
 
   send(text: string): boolean {
+    if (this.#managed) return this.#managed.send(text);
     if (this.connection && this.connection.writable) {
-      // Normalize line endings and preserve multi-line pastes unambiguously.
-      // Plain `text + '\n'` is ambiguous when `text` itself contains `\n`:
-      // the server's line splitter would treat interior `\n` as separate
-      // messages. For multi-line payloads we JSON-encode the string so
-      // interior `\n` becomes the escape `\n` (two chars) and the outer
-      // delimiter remains the single trailing `\n`. Single-line payloads are
-      // left as-is for backward compatibility.
-      const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      const payload = normalized.includes('\n')
-        ? JSON.stringify(normalized) + '\n'
-        : normalized + '\n';
-      this.connection.write(payload);
+      this.connection.write(encodePayload(text));
       return true;
     }
     return false;
@@ -165,6 +131,7 @@ export class LanClient extends EventEmitter {
 
   start(): void {
     this.isStopped = false;
+    this.#reconnect.cancel();
     if (this.serverAddress) {
       this.connect();
     } else {
@@ -175,8 +142,11 @@ export class LanClient extends EventEmitter {
   stop(): void {
     this.isStopped = true;
     this.isSearching = false;
-    if (this._discoveryTimer) clearTimeout(this._discoveryTimer);
-    if (this._reconnectTimer) clearTimeout(this._reconnectTimer);
+    if (this.#discoveryCleanup) { this.#discoveryCleanup(); this.#discoveryCleanup = null; }
+    if (this._discoveryTimer) { clearTimeout(this._discoveryTimer); this._discoveryTimer = null; }
+    this.#reconnect.cancel();
+    if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
+    if (this.#managed) { this.#managed.destroy(); this.#managed = null; }
     if (this.connection) {
       this.connection.end();
       this.connection.destroy();

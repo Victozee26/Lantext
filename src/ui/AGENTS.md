@@ -15,25 +15,34 @@
   module.
 - `buffered-session.ts` - per-event queue flushed on first subscribe so no
   transport event is lost between transport start and React mount.
-- `runtime.ts` - renderer lifecycle and the single idempotent teardown;
-  `bootRuntime`, `failFast`, `<ShutdownKeys>`.
+- `runtime.ts` - renderer lifecycle (`bootRuntime`, `failFast`); delegates
+  `ShutdownKeys` to `runtime/shutdown-keys.tsx`.
+- `runtime/shutdown-keys.tsx` - keyboard Ctrl+C path (raw-mode key event).
 - `select-screen.tsx` - mode-select screen with a NON-exiting close for the
   select-to-chat handoff.
-- `chat-screen.tsx` - shared chat boot wiring (`bootRuntime` + `<App>`); the
-  plain `.ts` orchestrators hold no JSX.
-- `hooks/use-chat-session.ts` - adapter events to React state bridge;
-  messages capped at `MAX_MESSAGE_ROWS` (500). Also exposes `appendOwn()`
-  for the display-only local echo (see Local Contracts).
+- `chat-screen.tsx` - shared chat boot wiring (`bootRuntime` + `<App>`); receives
+  `ChatScreenContext` (`ownSender`, `localIp`, `version`) from orchestrators via
+  `src/adapters/` + `src/modes/` — UI never imports `node:os`/`fs`.
+- `hooks/use-chat-session.ts` - composition root over `hooks/use-messages.ts` +
+  `hooks/use-connection.ts`; preserves `MAX_MESSAGE_ROWS` (500) and
+  `appendOwn()`.
+- `hooks/use-messages.ts` - message-only state (500 cap).
+- `hooks/use-connection.ts` - status/discovered/connected/ready/clientCount/error state.
 - `theme.ts` - palette tokens as plain hex values plus surface tokens
   (`border`, `selfBg`, `otherBg`) and `mixHex()` interpolation used for the
   mode-select gradient wordmark. No color libraries in this scope.
-- `app.tsx`, `components/*` - presentation only; no sockets, timers, or
+- `app.tsx` - layout composition; `Header`/`MessageFeed`/`Composer`/`StatusBar` + `ownSender` injection.
+- `components/header.tsx` - banner; now prop-injected `localIp`/`version` (no `getLocalIP` import).
+- `components/composer.tsx` + `components/composer/{normalize,bindings,use-debounce}.ts` - composer frame + paste/debounce submodules.
+- `components/message-feed.tsx` + `components/message-feed/{message-row,divider,time,multiline}.ts` - feed composition + row/copy submodules.
+- `components/*` (others) - presentation only; no sockets, timers, or
   protocol logic.
 
 ## Local Contracts
 
 - Adapter boundary: transports are adapted at the orchestrator layer
-  (`src/client-mode.ts`, `src/server-mode.ts`). Payload shapes documented in
+  (`src/adapters/client-adapter.ts`, `src/adapters/server-adapter.ts` via
+  `src/modes/*`). Payload shapes documented in
   `session-adapter.ts` reflect ACTUAL transport emit calls: `error` payloads
   are preformatted strings, not `Error`. `LanClient` has no terminal failure
   state and never emits `error`; the client adapter promotes its observable
@@ -41,9 +50,9 @@
   without updating both sides.
 - Own-sender identity + local echo: transports do NOT loop local sends back
   into `message` (the server excludes the originating socket from broadcast
-  and never re-emits its own sends). `App` therefore derives `ownSender`
-  (`'HOTSPOT'` for server, `getLocalIP()` for client — matching how the
-  server stamps envelopes) and echoes successful sends via
+  and never re-emits its own sends). `ChatScreenContext` (`ownSender`,
+  `localIp`, `version`) is built by `src/modes/*` from `src/protocol/*` and
+  injected into `App`/`Header`; `App` echoes successful sends via
   `useChatSession.appendOwn`. Echo rows are display-only; they never touch
   the wire and are capped by the same `MAX_MESSAGE_ROWS`.
 - Shutdown ownership rule: the renderer is created with
@@ -115,6 +124,7 @@
   inside single `<text>`; `formatTime()` `HH:MM`. Chrome excluded via
   `selectable={false}` on header/divider/placeholder so
   `Selection.getSelectedText()` only returns bodies.
+- Import boundary (strict): `src/ui/**` may not import `node:net|dgram|os|fs` or `src/protocol/network|version`; network/version are injected as props via `ChatScreenContext`. `MessageEnvelope` type from `src/protocol/envelope.ts` is the only allowed protocol import. Guarded by `eslint` + `.dependency-cruiser.cjs`.
 - Message copy: each row is `onMouseDown` double-click (400 ms) →
   `createHostClipboard` + `createClipboard({ host, terminal:
   createRendererClipboardAdapter(renderer) })` → `writeText(text,

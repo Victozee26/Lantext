@@ -11,19 +11,20 @@
 // height={1} per the nested-row collapse fact in AGENTS.md.
 
 import { TextAttributes } from '@opentui/core';
-import { getLocalIP, getVersion } from '../../utils.js';
 import { THEME } from '../theme.js';
 
 /** Chat mode label for the header badge and the mode-select screen. */
 export type LanTextMode = 'client' | 'server';
 
-const VERSION = getVersion();
-
 export interface HeaderProps {
   mode: LanTextMode;
+  /** Local IP to display; injected by orchestrator so UI stays pure. */
+  localIp: string;
+  /** Version string; injected similarly. */
+  version: string;
 }
 
-export function Header({ mode }: HeaderProps) {
+export function Header({ mode, localIp, version }: HeaderProps) {
   const isServer = mode === 'server';
   const badgeColor = isServer ? THEME.accent : THEME.brand;
   return (
@@ -39,9 +40,9 @@ export function Header({ mode }: HeaderProps) {
         <text style={{ fg: THEME.accent }}>◆ </text>
         <text style={{ fg: THEME.accent, attributes: TextAttributes.BOLD }}>LAN</text>
         <text style={{ fg: THEME.brand, attributes: TextAttributes.BOLD }}>Text</text>
-        <text style={{ fg: THEME.muted }}> v{VERSION}</text>
+        <text style={{ fg: THEME.muted }}> v{version}</text>
         <box flexGrow={1} />
-        <text style={{ fg: THEME.muted }}>{getLocalIP()}</text>
+        <text style={{ fg: THEME.muted }}>{localIp}</text>
         <text style={{ fg: badgeColor }}> ● {mode}</text>
       </box>
     </box>

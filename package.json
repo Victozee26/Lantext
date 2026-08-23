@@ -15,6 +15,9 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
+    "lint:deps": "depcruise src --config .dependency-cruiser.cjs",
+    "knip": "knip",
     "prepack": "npm run build",
     "start": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js",
     "client": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js client",

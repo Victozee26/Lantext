@@ -21,7 +21,7 @@
 //   connected/message; LanServer covers debug/message/error/ready/
 //   clientConnected/clientDisconnected.
 
-import type { MessageEnvelope } from '../utils.js';
+import type { MessageEnvelope } from '../protocol/envelope.js';
 
 /** Payload for client-count events (LanServer 'clientConnected'/'clientDisconnected'). */
 export interface ClientCountEvent {
