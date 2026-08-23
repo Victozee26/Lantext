@@ -59,6 +59,17 @@ export function MessageFeed({ messages, ownSender }: MessageFeedProps) {
   );
 }
 
+function renderMultiline(text: string) {
+  const lines = text.split('\n');
+  if (lines.length === 1) return lines[0];
+  return lines.map((line, idx) => (
+    <span key={idx}>
+      {line}
+      {idx < lines.length - 1 ? <br /> : null}
+    </span>
+  ));
+}
+
 function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: boolean }) {
   if (own) {
     return (
@@ -72,7 +83,7 @@ function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: bool
         paddingRight={2}
       >
         <text style={{ fg: THEME.sent }} wrapMode="word">
-          {envelope.text}
+          {renderMultiline(envelope.text)}
         </text>
       </box>
     );
@@ -89,7 +100,7 @@ function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: bool
       paddingLeft={2}
       paddingRight={2}
     >
-      <text wrapMode="word">{envelope.text}</text>
+      <text wrapMode="word">{renderMultiline(envelope.text)}</text>
     </box>
   );
 }

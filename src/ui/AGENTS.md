@@ -65,8 +65,13 @@
   newline. Failed sends keep text and show the hint via `onKeyDown`
   clearing (content-change events arrive deferred from the native edit
   buffer and would clobber it). The card border turns warning-colored while
-  the retry hint is up; the textarea contract (minHeight 1 / maxHeight 3,
-  native paste) is unchanged. The compose card reserves its two border rows
+  the retry hint is up; the textarea contract (minHeight 1 / maxHeight 3)
+  is preserved but bracketed paste is intercepted via `usePaste` to
+  `decodePasteBytes` → `stripAnsiSequences` → CRLF/CR→LF normalization
+  before `insertText`, preventing stray `\r`/ANSI and keeping a single undo
+  entry; `handleSubmit` also normalizes CRLF/CR→LF and strips leading/
+  trailing blank lines before `onSubmit`, preserving interior `\n` as a
+  single multi-line message. The compose card reserves its two border rows
   plus one editor row (`minHeight={3}`) and the card/editor/composer wrapper
   use `flexShrink={0}`; reduced terminal height must shrink the feed before
   putting editor text on a border.
@@ -85,7 +90,9 @@
   forces `wrapMode="word"` wrapping; no timestamps rendered; incoming
   bubble title = sender name (purple), own bubble has no title; bubbles
   are border-only with no `backgroundColor` (prevents rounded-corner bleed);
-  scroll feed uses `gap={1}` between bubbles.
+  multi-line `envelope.text` is split on `\n` and rendered with `<br />`
+  inside a single `<text>` so pasted line breaks survive layout; scroll
+  feed uses `gap={1}` between bubbles.
 
 ## Work Guidance
 

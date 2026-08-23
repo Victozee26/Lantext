@@ -8,8 +8,11 @@
 //   Enter       -> submit      (overrides the default newline)
 //   Shift+Enter -> newline
 //   Meta+Enter  -> newline     (overrides the default submit)
-// Bracketed paste reaches the renderable's native handlePaste and is
-// inserted as text; the old 50 ms readline paste heuristic is NOT
+// Bracketed paste is intercepted via usePaste: raw bytes are decoded,
+// ANSI escapes stripped, and CRLF/CR normalized to LF before insertion.
+// This preserves intentional multi-line pastes as a single editable buffer
+// (Shift+Enter semantics) while preventing stray \r, ANSI, or trailing
+// newline artifacts. The old 50 ms readline paste heuristic is NOT
 // reimplemented.
 //
 // Submit contract: empty input is a no-op. onSubmit(text) returns the send
@@ -33,7 +36,22 @@
 
 import { useRef, useState } from 'react';
 import type { KeyBinding, KeyEvent, TextareaRenderable } from '@opentui/core';
+import { decodePasteBytes, stripAnsiSequences } from '@opentui/core';
+import { usePaste } from '@opentui/react';
 import { THEME } from '../theme.js';
+
+function normalizeLineEndings(text: string): string {
+  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
+function normalizeForSend(text: string): string {
+  let out = normalizeLineEndings(text);
+  // Strip leading/trailing blank lines introduced by a trailing newline in the
+  // paste payload, but preserve intentional leading spaces on the first line
+  // and interior blank lines. Interior \n are kept as-is.
+  out = out.replace(/^\n+/, '').replace(/\n+$/, '');
+  return out;
+}
 
 const COMPOSER_KEY_BINDINGS: KeyBinding[] = [
   { name: 'return', action: 'submit' },
@@ -57,10 +75,31 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
   const editorRef = useRef<TextareaRenderable>(null);
   const [notConnected, setNotConnected] = useState(false);
 
+  // Intercept bracketed paste before the textarea's native handlePaste.
+  // Native handler would insert raw bytes with \r preserved and only strip
+  // ANSI; we normalize to LF and strip ANSI ourselves, then insert via the
+  // editor API. This keeps a single undo entry and prevents stray \r/ANSI
+  // from entering the buffer.
+  usePaste((event) => {
+    try {
+      const raw = decodePasteBytes(event.bytes);
+      const normalized = normalizeLineEndings(stripAnsiSequences(raw));
+      if (!normalized) return;
+      // Prevent the textarea's default paste (which would insert unnormalized
+      // \r) and insert the sanitized form instead.
+      event.preventDefault();
+      editorRef.current?.insertText(normalized);
+      setNotConnected(false);
+    } catch {
+      // Fall back to native handling on decode failure.
+    }
+  });
+
   const handleSubmit = (): void => {
     const editor = editorRef.current;
     if (!editor) return;
-    const text = editor.plainText;
+    const raw = editor.plainText;
+    const text = normalizeForSend(raw);
     if (text.trim() === '') return;
     if (onSubmit(text)) {
       editor.clear();

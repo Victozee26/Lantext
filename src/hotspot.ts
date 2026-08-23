@@ -28,12 +28,46 @@ export class LanServer extends EventEmitter {
       this.emit('clientConnected', clientId, this.clients.size);
 
       socket.setEncoding('utf8');
+      let buffer = '';
+      const flushLine = (rawLine: string): void => {
+        if (rawLine.length === 0) return;
+        // Preserve leading spaces for code pastes; only skip truly empty lines.
+        // Detect JSON-string encoded multi-line payloads (client sends
+        // JSON.stringify(text) when text contains \n).
+        let text: string | null = null;
+        const trimmed = rawLine.trim();
+        if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (typeof parsed === 'string') text = parsed;
+          } catch {
+            // fall through to plain
+          }
+        }
+        if (text === null) {
+          let plain = rawLine;
+          if (plain.endsWith('\r')) plain = plain.slice(0, -1);
+          if (plain.trim() === '') return;
+          text = plain;
+        }
+        // Normalize line endings that may have survived transport.
+        text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        // Strip a single trailing/leading blank line that a paste ending with
+        // \n would otherwise leave; interior blank lines are preserved.
+        const sendText = text.replace(/^\n+/, '').replace(/\n+$/, '');
+        const finalText = sendText.length ? sendText : text;
+        if (finalText.trim() === '') return;
+        const envelope = createEnvelope(socket.remoteAddress, finalText);
+        this.broadcast(envelope, socket);
+        this.emit('message', envelope);
+      };
+
       socket.on('data', (data) => {
-        const message = data.toString().trim();
-        if (message) {
-          const envelope = createEnvelope(socket.remoteAddress, message);
-          this.broadcast(envelope, socket);
-          this.emit('message', envelope);
+        buffer += data.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const rawLine of lines) {
+          flushLine(rawLine);
         }
       });
 
@@ -44,8 +78,19 @@ export class LanServer extends EventEmitter {
       });
 
       socket.on('end', () => {
+        if (buffer.trim() !== '') {
+          flushLine(buffer);
+          buffer = '';
+        }
         this.clients.delete(socket);
         this.emit('clientDisconnected', clientId, this.clients.size);
+      });
+
+      socket.on('close', () => {
+        if (buffer.trim() !== '') {
+          flushLine(buffer);
+          buffer = '';
+        }
       });
     });
 
@@ -101,7 +146,10 @@ export class LanServer extends EventEmitter {
   }
 
   send(text: string): MessageEnvelope {
-    const envelope = createEnvelope('HOTSPOT', text);
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const sendText = normalized.replace(/^\n+/, '').replace(/\n+$/, '');
+    const finalText = sendText.length ? sendText : normalized;
+    const envelope = createEnvelope('HOTSPOT', finalText);
     this.broadcast(envelope);
     return envelope;
   }

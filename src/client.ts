@@ -146,7 +146,18 @@ export class LanClient extends EventEmitter {
 
   send(text: string): boolean {
     if (this.connection && this.connection.writable) {
-      this.connection.write(text + '\n');
+      // Normalize line endings and preserve multi-line pastes unambiguously.
+      // Plain `text + '\n'` is ambiguous when `text` itself contains `\n`:
+      // the server's line splitter would treat interior `\n` as separate
+      // messages. For multi-line payloads we JSON-encode the string so
+      // interior `\n` becomes the escape `\n` (two chars) and the outer
+      // delimiter remains the single trailing `\n`. Single-line payloads are
+      // left as-is for backward compatibility.
+      const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const payload = normalized.includes('\n')
+        ? JSON.stringify(normalized) + '\n'
+        : normalized + '\n';
+      this.connection.write(payload);
       return true;
     }
     return false;
