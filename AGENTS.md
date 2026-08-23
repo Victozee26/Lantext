@@ -20,8 +20,11 @@
   terminal presentation in focused modules.
 - Preserve the existing boundaries unless a change explicitly requires
   restructuring them:
-  - `src/main.ts` handles CLI dispatch and interactive mode selection
-    (OpenTUI mode-select screen on TTY stdin; plain help fallback otherwise).
+- `src/main.ts` handles CLI dispatch and interactive mode selection
+  (OpenTUI mode-select screen on TTY stdin; plain help fallback otherwise).
+- `src/bin.ts` is the self-relaunching bin shim behind the global
+  `lantext` command: re-execs Node with `--experimental-ffi`, forwarding
+  args, SIGINT/SIGTERM, and exit codes (128 + signal number).
   - `src/client-mode.ts` and `src/server-mode.ts` coordinate runtime modes:
     build ChatSession adapters over the transports, run the OpenTUI chat
     screen on TTY stdin, and the plain-output + piped-input path otherwise.

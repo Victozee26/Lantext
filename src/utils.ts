@@ -1,10 +1,31 @@
 // utils.js - Shared utilities and constants
+import { readFileSync } from 'node:fs';
 import os from 'node:os';
 
 export interface MessageEnvelope {
   sender: string;
   timestamp: number;
   text: string;
+}
+
+let cachedVersion: string | undefined;
+
+/** Shared runtime version read from package.json. Cached after the first
+ *  read; any read/parse failure degrades to '?' instead of throwing. A
+ *  direct JSON import is impossible because tsconfig rootDir is `src` and
+ *  package.json lives at the repository root (compiled code resolves
+ *  ../package.json relative to dist/). */
+export function getVersion(): string {
+  if (cachedVersion === undefined) {
+    try {
+      const raw = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
+      const pkg = JSON.parse(raw) as { version?: unknown };
+      cachedVersion = typeof pkg.version === 'string' && pkg.version !== '' ? pkg.version : '?';
+    } catch {
+      cachedVersion = '?';
+    }
+  }
+  return cachedVersion;
 }
 
 export const PORTS = {

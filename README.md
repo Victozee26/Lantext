@@ -15,12 +15,27 @@ Sending a quick message from your phone to your laptop or to a colleague’s dev
 
 ## Features
 
-- **Beautiful Terminal UI**: Claude Code-inspired interface with rich colors, animated spinners, and an interactive select menu.
+- **OpenTUI terminal UI**: interactive mode-select screen and chat screen with
+  a header (brand, IP, mode, version), scrollable message feed, status bar,
+  and multi-line composer. Piped/non-TTY use gets plain-text output with no
+  ANSI color codes.
 - **Auto-discovery**: Automatically finds the chat server on the network
 - **Multiple clients**: Support for multiple simultaneous connections
 - **Hotspot mode**: WiFi hotspot devices can both host and participate in chat
 - **Real-time messaging**: Instant message delivery across the network
 - **Global CLI**: Install once, run anywhere with `lantext` command
+
+## Requirements
+
+- **Node.js >= 26.4.0**: OpenTUI acceptance pins 26.4.0; LanText is tested on
+  26.5.0.
+- The OpenTUI renderer needs the `--experimental-ffi` flag. All npm scripts
+  embed it automatically, and the global/npx `lantext` binary re-launches
+  itself with the flag via a small bin shim (`dist/bin.js`). For exotic
+  setups, `NODE_OPTIONS=--experimental-ffi lantext` works as a fallback.
+- Verified on Linux glibc arm64 under proot (Termux). Upstream Node.js
+  acceptance covers Linux x64; darwin and win32 artifacts exist but are not
+  tested by this project.
 
 ## Installation
 
@@ -31,8 +46,12 @@ npm install -g lantext
 lantext
 ```
 
+The installed `lantext` command is a self-relaunching bin shim: it starts
+Node with `--experimental-ffi` automatically (arguments, signals, and exit
+codes are forwarded), so no extra flags are needed.
+
 For a local installation, install the package without the global flag and run
-it with `npx`:
+it with `npx` (same shim behavior):
 
 ```bash
 npm install lantext
@@ -59,7 +78,10 @@ Simply run `lantext` and choose your mode:
 lantext
 ```
 
-The CLI will ask you whether you want to be a **WiFi client** (connect to existing network) or **hotspot** (create server).
+An OpenTUI select screen offers **WiFi client** (connect to an existing
+network) and **Hotspot server** (create a server). Arrow keys move, Enter
+selects, `q`/ESC quits cleanly. With non-interactive (piped) stdin the help
+text is printed instead.
 
 ### Direct Mode
 
@@ -77,7 +99,9 @@ lantext hotspot
 lantext server
 ```
 
-When running from a source checkout, use `npm start -- <mode>` after building:
+When running from a source checkout, use `npm start -- <mode>` after building
+(the npm scripts embed `--experimental-ffi`; the global `lantext` shim adds
+it automatically):
 
 ```bash
 npm start -- client
@@ -86,23 +110,11 @@ npm start -- hotspot
 
 ### Multi-line Messages
 
-LanText supports sending multiple lines of text as a single message. To send a multi-line message:
+In the chat screen, **Enter** sends the message and **Shift+Enter** (or
+Meta+Enter) inserts a newline. The composer grows up to three lines and
+scrolls internally beyond that; bracketed paste is inserted as-is.
 
-1. Type your first line and press Enter
-2. Continue typing additional lines, pressing Enter after each line
-3. When done, press Enter again on an empty line to send the entire message
-
-**Example:**
-```text
-❯ Line 1 of my message
-❯ Line 2 of my message
-❯ Line 3 of my message
-  ✓ Sent  12:34:56
-  │ Line 1 of my message
-  │ Line 2 of my message
-  │ Line 3 of my message
-❯
-```
+Piped (non-TTY) input sends one line per newline-delimited line of stdin.
 
 ### Debug Mode
 
@@ -124,14 +136,16 @@ reliable messaging. The default ports are UDP `41237` for discovery and TCP
 
 The TypeScript source is compiled from `src/` to `dist/` before the CLI runs.
 
-- **Main** (`src/main.ts`): CLI entry point, argument parsing, and interactive mode selection.
+- **Main** (`src/main.ts`): CLI entry point, argument parsing, and interactive mode selection (OpenTUI mode-select screen on a TTY; plain help fallback otherwise).
+- **Bin shim** (`src/bin.ts`): self-relaunching shim behind the global `lantext` command; re-execs Node with `--experimental-ffi`, forwarding args, signals, and exit codes.
 - **Client mode** (`src/client-mode.ts`): Coordinates client networking, input, and terminal updates.
 - **Server mode** (`src/server-mode.ts`): Coordinates hotspot networking, input, and terminal updates.
 - **Client transport** (`src/client.ts`): Discovers servers, manages TCP connections, parses incoming messages, and reconnects.
 - **Hotspot transport** (`src/hotspot.ts`): Runs the TCP server, answers UDP discovery, and broadcasts messages.
-- **Input** (`src/input.ts`): Handles terminal, pasted, multi-line, and piped input.
-- **UI** (`src/ui.ts`): Provides terminal styling, banners, status lines, and message formatting.
-- **Utilities** (`src/utils.ts`): Defines ports, discovery messages, network helpers, and message envelopes.
+- **Input** (`src/input.ts`): Handles piped (non-TTY) input. TTY input is owned by the OpenTUI composer.
+- **UI** (`src/ui/`): OpenTUI application (mode-select screen, chat screen, components, runtime, session adapter).
+- **UI helpers** (`src/ui.ts`): Plain-text, ANSI-free non-TTY display helpers (help text, piped output lines, status lines, debug logging).
+- **Utilities** (`src/utils.ts`): Defines ports, discovery messages, network helpers, message envelopes, and the shared runtime version helper.
 
 Messages use newline-delimited JSON envelopes with `sender`, `timestamp`, and
 `text` fields.

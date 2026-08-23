@@ -13,8 +13,7 @@
 //   exit 0 cleanly. The select screen and the chat screen each manage their
 //   own alt screen; the transition leaves zero orphaned listeners/handles.
 // - Non-TTY stdin with no args: plain-output fallback (help text, exit 0) —
-//   a non-interactive stdin cannot drive the TUI. This mirrors the old
-//   clack prompt's EOF behavior (menu printed, exit 0) without a renderer.
+//   a non-interactive stdin cannot drive the TUI (help printed, exit 0).
 // - Direct modes: the orchestrators pick the TUI (TTY stdin) or the
 //   plain-output + piped-input path (non-TTY stdin) internally.
 // - help: plain text, printed BEFORE any renderer starts.

@@ -1,31 +1,17 @@
 // header.tsx - Top bar: LANText wordmark, local IP, mode badge, and version.
 //
-// The version is read at RUNTIME from package.json via fs.readFileSync: a
-// direct JSON import is impossible because tsconfig rootDir is `src` and
-// package.json lives at the repository root. Parsed once at module load;
-// any read/parse failure degrades to '?' instead of throwing.
-//
-// Note: the plan's URL was "../../package.json", written for a file one
-// level shallower; from src/ui/components/ the repo root is three levels up.
+// The version comes from the shared getVersion() helper (src/utils.ts): read
+// at RUNTIME from package.json (a direct JSON import is impossible because
+// tsconfig rootDir is `src` and package.json lives at the repository root).
+// Cached after first read; any failure degrades to '?'.
 
-import { readFileSync } from 'node:fs';
-import { getLocalIP } from '../../utils.js';
+import { getLocalIP, getVersion } from '../../utils.js';
 import { THEME } from '../theme.js';
 
 /** Chat mode label for the header badge and the mode-select screen. */
 export type LanTextMode = 'client' | 'server';
 
-function loadVersion(): string {
-  try {
-    const raw = readFileSync(new URL('../../../package.json', import.meta.url), 'utf8');
-    const pkg = JSON.parse(raw) as { version?: unknown };
-    return typeof pkg.version === 'string' && pkg.version !== '' ? pkg.version : '?';
-  } catch {
-    return '?';
-  }
-}
-
-const VERSION = loadVersion();
+const VERSION = getVersion();
 
 export interface HeaderProps {
   mode: LanTextMode;

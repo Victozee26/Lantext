@@ -1,7 +1,7 @@
-// theme.ts - LanText color palette for OpenTUI (plain hex values, no chalk).
-// OpenTUI style props accept these as `ColorInput` (string | RGBA) on
-// `<text style={{ fg }}>`, `<box borderColor>`, `backgroundColor`, etc.
-// Source: the palette previously defined in src/ui.ts via chalk.hex(...).
+// theme.ts - LanText color palette for OpenTUI (plain hex values, no color
+// library). OpenTUI style props accept these as `ColorInput` (string | RGBA)
+// on `<text style={{ fg }}>`, `<box borderColor>`, `backgroundColor`, etc.
+// Source: the palette previously defined in src/ui.ts as hex tokens.
 
 export interface LanTextTheme {
   brand: string; // LAN blue
