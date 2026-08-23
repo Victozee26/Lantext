@@ -5,7 +5,7 @@
     style="
       border-radius: 16px;
     "
-    src='asset/logo-1.jpeg' width='160'>
+    src='asset/logo-1.jpeg' width='100%'>
 </p>
 
 A lightweight local area network chat application that enables real-time communication between WiFi-connected devices.
