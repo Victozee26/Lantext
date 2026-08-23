@@ -21,7 +21,7 @@
     "prepack": "npm run build",
     "start": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js",
     "client": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js client",
-    "hotspot": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js hotspot",
+    "host": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js host",
     "dev": "npm run build && DEBUG=true node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js"
   },
   "keywords": [

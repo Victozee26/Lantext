@@ -1,11 +1,11 @@
-// hotspot.ts - Combined server logic for hotspot devices (facade).
+// hotspot.ts - Combined host logic (facade).
 // Delegates TCP, UDP discovery, and broadcast to focused submodules.
 
 import type { Server, Socket } from 'node:net';
 import type { Socket as UdpSocket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
 import { createEnvelope, type MessageEnvelope } from './protocol/envelope.js';
-import { normalizeForHotspot } from './protocol/codec.js';
+import { normalizeForHost } from './protocol/codec.js';
 import { BroadcastHub } from './server/broadcast.js';
 import { createDiscoveryResponder } from './server/discovery.js';
 import { createTcpServer } from './server/tcp-server.js';
@@ -57,9 +57,9 @@ export class LanServer extends EventEmitter {
   }
 
   send(text: string): MessageEnvelope {
-    const finalText = normalizeForHotspot(text);
-    if (finalText === '') return createEnvelope('HOTSPOT', '');
-    const envelope = createEnvelope('HOTSPOT', finalText);
+    const finalText = normalizeForHost(text);
+    if (finalText === '') return createEnvelope('HOST', '');
+    const envelope = createEnvelope('HOST', finalText);
     this.broadcast(envelope);
     return envelope;
   }

@@ -21,7 +21,7 @@ Sending a quick message from your phone to your laptop or to a colleague’s dev
   ANSI color codes.
 - **Auto-discovery**: Automatically finds the chat server on the network
 - **Multiple clients**: Support for multiple simultaneous connections
-- **Hotspot mode**: WiFi hotspot devices can both host and participate in chat
+- **Host mode**: One device acts as host and other devices connect as clients
 - **Real-time messaging**: Instant message delivery across the network
 - **Global CLI**: Install once, run anywhere with `lantext` command
 
@@ -78,8 +78,8 @@ Simply run `lantext` and choose your mode:
 lantext
 ```
 
-An OpenTUI select screen offers **WiFi client** (connect to an existing
-network) and **Hotspot server** (create a server). Arrow keys move, Enter
+An OpenTUI select screen offers **Client** (connect to an existing
+host) and **Host** (create a host). Arrow keys move, Enter
 selects, `q`/ESC quits cleanly. With non-interactive (piped) stdin the help
 text is printed instead.
 
@@ -88,15 +88,11 @@ text is printed instead.
 You can also specify the mode directly:
 
 ```bash
-# Connect as WiFi client
-lantext client
-# or
-lantext wifi
+# Connect as client
+lantext client    # or lantext -c / lantext --client
 
-# Start as hotspot server
-lantext hotspot
-# or
-lantext server
+# Start as host
+lantext host      # or lantext -h / lantext --host
 ```
 
 When running from a source checkout, use `npm start -- <mode>` after building
@@ -105,7 +101,9 @@ it automatically):
 
 ```bash
 npm start -- client
-npm start -- hotspot
+npm start -- host
+npm start -- -c
+npm start -- -h
 ```
 
 ### Multi-line Messages
@@ -122,7 +120,7 @@ Piped (non-TTY) input sends one line per newline-delimited line of stdin.
 DEBUG=true lantext client
 ```
 
-### Connect to Specific Server
+### Connect to Specific Host
 
 ```bash
 SERVER=192.168.1.5 lantext client
@@ -135,21 +133,21 @@ SERVER=192.168.1.5 lantext client
 Both roles can run on one machine over the loopback interface:
 
 ```bash
-# Terminal 1 - hotspot/server
-npm run hotspot
+# Terminal 1 - host
+npm run host
 
-# Terminal 2 - wifi client
+# Terminal 2 - client
 npm run client
 ```
 
 Discovery probes `127.0.0.1`, so the client in terminal 2 finds the local
-server automatically; set `SERVER=127.0.0.1` to skip discovery. Run hotspot
-mode in only one session: a second server fails with `EADDRINUSE` while the
+host automatically; set `SERVER=127.0.0.1` to skip discovery. Run host
+mode in only one session: a second host fails with `EADDRINUSE` while the
 ports are held.
 
 ## Architecture
 
-LanText uses UDP discovery to find servers on the local network and TCP for
+LanText uses UDP discovery to find hosts on the local network and TCP for
 reliable messaging. The default ports are UDP `41237` for discovery and TCP
 `41236` for chat connections.
 
@@ -158,9 +156,9 @@ The TypeScript source is compiled from `src/` to `dist/` before the CLI runs.
 - **Main** (`src/main.ts`): CLI entry point, argument parsing, and interactive mode selection (OpenTUI mode-select screen on a TTY; plain help fallback otherwise).
 - **Bin shim** (`src/bin.ts`): self-relaunching shim behind the global `lantext` command; re-execs Node with `--experimental-ffi`, forwarding args, signals, and exit codes.
 - **Client mode** (`src/client-mode.ts`): Coordinates client networking, input, and terminal updates.
-- **Server mode** (`src/server-mode.ts`): Coordinates hotspot networking, input, and terminal updates.
-- **Client transport** (`src/client.ts`): Discovers servers, manages TCP connections, parses incoming messages, and reconnects.
-- **Hotspot transport** (`src/hotspot.ts`): Runs the TCP server, answers UDP discovery, and broadcasts messages.
+- **Host mode** (`src/server-mode.ts`): Coordinates host networking, input, and terminal updates.
+- **Client transport** (`src/client.ts`): Discovers hosts, manages TCP connections, parses incoming messages, and reconnects.
+- **Host transport** (`src/hotspot.ts`): Runs the TCP host, answers UDP discovery, and broadcasts messages.
 - **Input** (`src/input.ts`): Handles piped (non-TTY) input. TTY input is owned by the OpenTUI composer.
 - **UI** (`src/ui/`): OpenTUI application (mode-select screen, chat screen, components, runtime, session adapter).
 - **UI helpers** (`src/ui.ts`): Plain-text, ANSI-free non-TTY display helpers (help text, piped output lines, status lines, debug logging).
@@ -183,14 +181,14 @@ npm run dev
 ```
 
 There is currently no automated test script in `package.json`. Network changes
-should be verified with a client and hotspot on the appropriate local devices.
+should be verified with a client and host on the appropriate local devices.
 
 ## Configuration
 
 Environment variables:
 
 - `DEBUG=true` - Enable debug logging
-- `SERVER=<ip>` - Specify server IP address (skips discovery); `localhost`
+- `SERVER=<ip>` - Specify host IP address (skips discovery); `localhost`
   and `127.0.0.1` work for same-machine testing
 
 ## License

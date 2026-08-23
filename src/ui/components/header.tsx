@@ -14,7 +14,7 @@ import { TextAttributes } from '@opentui/core';
 import { THEME } from '../theme.js';
 
 /** Chat mode label for the header badge and the mode-select screen. */
-export type LanTextMode = 'client' | 'server';
+export type LanTextMode = 'client' | 'host';
 
 export interface HeaderProps {
   mode: LanTextMode;
@@ -25,7 +25,7 @@ export interface HeaderProps {
 }
 
 export function Header({ mode, localIp, version }: HeaderProps) {
-  const isServer = mode === 'server';
+  const isServer = mode === 'host';
   const badgeColor = isServer ? THEME.accent : THEME.brand;
   return (
     <box

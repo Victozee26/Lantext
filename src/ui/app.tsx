@@ -4,8 +4,8 @@
 // listening state) and the keyboard shutdown path are wired from the real
 // useChatSession state.
 //
-// Own-sender identity (row accent + local echo): the server stamps
-// its own sends 'HOTSPOT' (src/hotspot.ts); a client's messages are stamped
+// Own-sender identity (row accent + local echo): the host stamps
+// its own sends 'HOST' (src/hotspot.ts); a client's messages are stamped
 // by the server with the client's IP (createEnvelope(socket.remoteAddress)),
 // which equals getLocalIP() locally. Transports never loop local sends back
 // into 'message', so App echoes successful sends via session.appendOwn.
@@ -40,7 +40,7 @@ export interface AppProps {
 
 export function App({ adapter, shutdown, mode, ownSender, localIp, version, failFast }: AppProps) {
   const session = useChatSession(adapter);
-  const chatMode: LanTextMode = mode ?? (session.serverPort !== null ? 'server' : 'client');
+  const chatMode: LanTextMode = mode ?? (session.serverPort !== null ? 'host' : 'client');
 
   const handleSend = (text: string): boolean => {
     try {
@@ -73,7 +73,7 @@ export function App({ adapter, shutdown, mode, ownSender, localIp, version, fail
         connectedAddress={session.connectedAddress}
         serverPort={session.serverPort}
         clientCount={session.clientCount}
-        isServer={chatMode === 'server'}
+        isServer={chatMode === 'host'}
         lastError={session.lastError}
       />
     </box>

@@ -52,13 +52,14 @@ export function decodePayload(rawLine: string): string | null {
   return text.trim() === '' ? null : text;
 }
 
-/** Server-side hotspot send: strip edge blank lines then keep as-is. */
-export function normalizeForHotspot(text: string): string {
+/** Host-side send: strip edge blank lines then keep as-is. */
+export function normalizeForHost(text: string): string {
   const normalized = normalizeLineEndings(text);
   const stripped = normalized.replace(/^\n+/, '').replace(/\n+$/, '');
   const finalText = stripped.length ? stripped : normalized;
   return finalText.trim() === '' ? '' : finalText;
 }
+export const normalizeForHotspot = normalizeForHost;
 
 // ── Envelope (server → clients, JSON per line) ──────────────────
 

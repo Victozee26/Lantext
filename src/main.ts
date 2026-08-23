@@ -2,9 +2,9 @@
 
 // main.js - Entry point for LAN Chat application
 //
-// CLI dispatch (modes and aliases preserved): client|wifi, hotspot|server,
-// interactive default, help. Env vars DEBUG and SERVER keep their documented
-// meaning (SERVER=<ip> = direct-connect server IP for client mode).
+// CLI dispatch: host, client, interactive default, help. Env vars DEBUG and
+// SERVER keep their documented meaning (SERVER=<ip> = direct-connect server IP
+// for client mode).
 //
 // TTY vs non-TTY:
 // - TTY default (no args): OpenTUI mode-select screen (src/ui/select-screen.tsx).
@@ -21,7 +21,7 @@
 
 import { formatHelp, theme } from './ui.js';
 import { startClient } from './client-mode.js';
-import { startHotspot } from './server-mode.js';
+import { startHost } from './server-mode.js';
 import { openModeSelect } from './ui/select-screen.js';
 
 const args = process.argv.slice(2);
@@ -30,23 +30,24 @@ const mode = args[0];
 async function run(mode: string | undefined): Promise<void> {
   switch (mode) {
     case 'client':
-    case 'wifi':
+    case '-c':
+    case '--client':
       await startClient();
       break;
-    case 'hotspot':
-    case 'server':
-      await startHotspot();
+    case 'host':
+    case '-h':
+    case '--host':
+      await startHost();
       break;
     case 'help':
     case '--help':
-    case '-h':
       formatHelp();
       break;
     case undefined:
       if (process.stdin.isTTY) {
         const selected = await openModeSelect();
         if (selected === 'quit') process.exit(0);
-        await (selected === 'client' ? startClient() : startHotspot());
+        await (selected === 'client' ? startClient() : startHost());
       } else {
         formatHelp();
         process.exit(0);

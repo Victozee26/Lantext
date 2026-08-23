@@ -25,8 +25,8 @@
 - `src/bin.ts` is the self-relaunching bin shim behind the global
   `lantext` command: re-execs Node with `--experimental-ffi`, forwarding
   args, SIGINT/SIGTERM, and exit codes (128 + signal number).
-  - `src/client-mode.ts` and `src/server-mode.ts` are thin routers (TTY vs non-TTY).
-  - `src/modes/` owns mode TUI/plain presenters (`client-tui`, `client-plain`, `server-tui`, `server-plain`).
+   - `src/client-mode.ts` and `src/server-mode.ts` are thin routers (TTY vs non-TTY).
+  - `src/modes/` owns mode TUI/plain presenters (`client-tui`, `client-plain`, `server-tui`, `server-plain`) for host/client.
   - `src/adapters/` owns ChatSession translation (`client-adapter`, `server-adapter`).
   - `src/client.ts` + `src/client/` and `src/hotspot.ts` + `src/server/` own transport facades and focused submodules (discovery, connection/broadcast, reconnect).
   - `src/protocol/` is single source for wire contracts (`constants`, `envelope`, `codec`, `version`, `network`).
@@ -90,8 +90,7 @@ Before modifying anything:
 
 - Preserve the Node.js ESM model and the supported Node.js engine range unless
   the task explicitly changes them.
-- Preserve documented CLI modes and aliases (`client`/`wifi` and
-  `hotspot`/`server`) unless a breaking change is intentional and documented.
+- Preserve documented CLI modes and aliases (`client`/`-c`/`--client` and `host`/`-h`/`--host`) unless a breaking change is intentional and documented.
 - Treat UDP discovery, TCP messaging, configured ports, discovery messages, and
   newline-delimited JSON envelopes as protocol contracts. Change them only as
   a deliberate, end-to-end change.
@@ -142,7 +141,7 @@ Every module, class, and function should:
 - Run the relevant manual smoke check when behavior permits:
   - `npm start` for interactive mode selection
   - `npm run client` for client mode
-  - `npm run hotspot` for hotspot/server mode
+  - `npm run host` for host mode
 - For networking changes, verify discovery, connection, messaging, reconnect,
   and shutdown behavior with the appropriate local devices or processes.
 - Run `git diff --check` before closeout.
@@ -262,7 +261,7 @@ relevant child `AGENTS.md`.
 - `src/display/` - Plain-text display atoms for non-TTY paths. The root document owns this scope.
 - `src/client/` + `src/server/` - Focused transport submodules (discovery, connection/broadcast). Facades `src/client.ts`/`src/hotspot.ts` own lifecycle.
 - `src/adapters/` - ChatSession adapters over transports. The root document owns this scope.
-- `src/modes/` - Mode presenters (TUI vs plain for client/server). The root document owns this scope.
+- `src/modes/` - Mode presenters (TUI vs plain for host/client). The root document owns this scope.
 - `src/ui/` - OpenTUI React terminal UI: session adapter boundary, renderer
   runtime and shutdown ownership, chat screen, and mode-select screen. Owns
   TTY presentation; non-TTY display stays in `src/display/` under the root

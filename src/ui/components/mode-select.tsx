@@ -1,4 +1,4 @@
-// mode-select.tsx - Interactive mode picker (WiFi Client / Hotspot Server),
+// mode-select.tsx - Interactive mode picker (Client / Host),
 // presented as a centered hero card.
 //
 // Wordmark + rule gradients: per-character colors via styled <span> children
@@ -28,8 +28,8 @@ export interface ModeSelectProps {
 }
 
 const OPTIONS: SelectOption[] = [
-  { name: 'WiFi Client', description: 'connect to a LAN server', value: 'client' },
-  { name: 'Hotspot Server', description: 'accept incoming clients', value: 'server' },
+  { name: 'Client', description: 'connect to a host', value: 'client' },
+  { name: 'Host', description: 'accept incoming clients', value: 'host' },
 ];
 
 const WORDMARK = 'LANText'.split('');
