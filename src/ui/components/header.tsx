@@ -37,7 +37,8 @@ export function Header({ mode }: HeaderProps) {
     >
       <box flexDirection="row" alignItems="center" height={1}>
         <text style={{ fg: THEME.accent }}>◆ </text>
-        <text style={{ fg: THEME.brand, attributes: TextAttributes.BOLD }}>LANText</text>
+        <text style={{ fg: THEME.accent, attributes: TextAttributes.BOLD }}>LAN</text>
+        <text style={{ fg: THEME.brand, attributes: TextAttributes.BOLD }}>Text</text>
         <text style={{ fg: THEME.muted }}> v{VERSION}</text>
         <box flexGrow={1} />
         <text style={{ fg: THEME.muted }}>{getLocalIP()}</text>
