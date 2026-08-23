@@ -57,6 +57,13 @@ const ACCENT_BORDER_CHARS = {
   cross: '',
 } as const;
 
+// Scalable empty-state tips shown under "no messages yet — say something".
+// Add entries here to rotate or cycle tips in the future; the feed currently
+// renders the first entry only.
+const TIPS: readonly string[] = [
+  "Tip: Double-click a message to copy it",
+] as const;
+
 export interface MessageFeedProps {
   messages: MessageEnvelope[];
   /** Sender identity styled as own-sent rows; null/undefined disables own styling. */
@@ -83,10 +90,15 @@ export function MessageFeed({ messages, ownSender }: MessageFeedProps) {
       horizontalScrollbarOptions={{ visible: false }}
     >
       {messages.length === 0 ? (
-        <box flexDirection="column" alignItems="center" width="100%" paddingTop={1}>
+        <box flexDirection="column" alignItems="center" width="100%" paddingTop={1} gap={1}>
           <text selectable={false} style={{ fg: THEME.muted }}>
             no messages yet — say something
           </text>
+          {TIPS[0] ? (
+            <text selectable={false} style={{ fg: THEME.muted, attributes: TextAttributes.DIM }}>
+              {TIPS[0]}
+            </text>
+          ) : null}
         </box>
       ) : null}
       {messages.map((envelope, index) => (

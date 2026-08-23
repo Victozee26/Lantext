@@ -8,6 +8,7 @@
 //   Enter       -> submit      (overrides the default newline)
 //   Shift+Enter -> newline
 //   Meta+Enter  -> newline     (overrides the default submit)
+//   Ctrl+J      -> newline     (raw terminals: LF is linefeed; kitty: j+ctrl)
 // Bracketed paste is intercepted via usePaste: raw bytes are decoded,
 // ANSI escapes stripped, and CRLF/CR normalized to LF before insertion.
 // This preserves intentional multi-line pastes as a single editable buffer
@@ -60,13 +61,18 @@ function normalizeForSend(text: string): string {
 const COMPOSER_KEY_BINDINGS: KeyBinding[] = [
   { name: 'return', action: 'submit' },
   { name: 'kpenter', action: 'submit' },
-  { name: 'linefeed', action: 'submit' },
+  // Plain linefeed (LF / raw Ctrl+J) -> newline so Ctrl+J inserts a new line.
+  // Enter still submits via return/kpenter.
+  { name: 'linefeed', action: 'newline' },
   { name: 'return', shift: true, action: 'newline' },
   { name: 'kpenter', shift: true, action: 'newline' },
   { name: 'linefeed', shift: true, action: 'newline' },
   { name: 'return', meta: true, action: 'newline' },
   { name: 'kpenter', meta: true, action: 'newline' },
   { name: 'linefeed', meta: true, action: 'newline' },
+  // Kitty protocol reports Ctrl+J as j+ctrl; also cover linefeed+ctrl for completeness.
+  { name: 'j', ctrl: true, action: 'newline' },
+  { name: 'linefeed', ctrl: true, action: 'newline' },
 ];
 
 export interface ComposerProps {
@@ -240,8 +246,7 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
 
   const handleKeyDown = (key: KeyEvent): void => {
     const isPlainEnter =
-      (key.name === 'return' || key.name === 'kpenter' || key.name === 'linefeed') &&
-      !key.shift && !key.meta && !key.ctrl;
+      (key.name === 'return' || key.name === 'kpenter') && !key.shift && !key.meta && !key.ctrl;
     if (!isPlainEnter) setNotConnected(false);
   };
 
@@ -272,7 +277,7 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
           minHeight={1}
           maxHeight={computedMaxHeight}
           flexShrink={0}
-          placeholder={placeholder ?? 'Message (Enter to send · Shift+Enter newline)'}
+          placeholder={placeholder ?? 'Message (Enter to send · Shift+Enter / Ctrl+J newline)'}
           placeholderColor={THEME.muted}
         />
       </box>

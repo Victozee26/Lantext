@@ -61,8 +61,9 @@
   design. Diagnostics surface through components (status bar) or the
   captured console channel only.
 - Composer bindings: custom `keyBindings` merge over textarea defaults by
-  exact name+modifier key. Enter submits; Shift+Enter / Meta+Enter insert a
-  newline. Failed sends keep text and show the hint via `onKeyDown`
+  exact name+modifier key. Enter submits; Shift+Enter / Meta+Enter / Ctrl+J
+  insert a newline (Ctrl+J: `linefeed` plain for raw terminals, `j+ctrl` for
+  kitty keyboard). Failed sends keep text and show the hint via `onKeyDown`
   clearing (content-change events arrive deferred from the native edit
   buffer and would clobber it). The card border turns warning-colored while
   the retry hint is up; the textarea grows `minHeight 1` to
