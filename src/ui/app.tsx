@@ -18,9 +18,13 @@ export interface AppProps {
   /** Header badge mode. Optional: Phase 4 passes it; when absent the mode is
    *  derived from session state (serverPort events -> server). */
   mode?: LanTextMode;
+  /** Fatal-error sink. The renderer's own uncaughtException handler swallows
+   *  throws and keeps rendering, so transport throws are routed to the
+   *  runtime's failFast explicitly instead of being hidden. */
+  failFast?: (message: string) => void;
 }
 
-export function App({ adapter, shutdown, mode }: AppProps) {
+export function App({ adapter, shutdown, mode, failFast }: AppProps) {
   const session = useChatSession(adapter);
   const chatMode: LanTextMode = mode ?? (session.serverPort !== null ? 'server' : 'client');
 
@@ -29,7 +33,17 @@ export function App({ adapter, shutdown, mode }: AppProps) {
       <ShutdownKeys onShutdown={shutdown} />
       <Header mode={chatMode} />
       <MessageFeed messages={session.messages} />
-      <Composer onSubmit={(text) => adapter.send(text)} />
+      <Composer
+        onSubmit={(text) => {
+          try {
+            return adapter.send(text);
+          } catch (err) {
+            const detail = err instanceof Error ? err.message : String(err);
+            if (failFast) failFast(`send failed: ${detail}`);
+            return false;
+          }
+        }}
+      />
       <StatusBar
         status={session.status}
         connectedAddress={session.connectedAddress}

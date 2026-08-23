@@ -1,60 +1,42 @@
 #!/usr/bin/env node
 
 // main.js - Entry point for LAN Chat application
-import { select, intro, outro, isCancel } from '@clack/prompts';
-import { showBanner, formatHelp, theme } from './ui.js';
+//
+// CLI dispatch (modes and aliases preserved): client|wifi, hotspot|server,
+// interactive default, help. Env vars DEBUG and SERVER keep their documented
+// meaning (SERVER=<ip> = direct-connect server IP for client mode).
+//
+// TTY vs non-TTY:
+// - TTY default (no args): OpenTUI mode-select screen (src/ui/select-screen.tsx).
+//   A selection tears down ONLY the select screen, then dispatches into the
+//   chosen orchestrator, which boots its own chat runtime. q / ESC / Ctrl+C
+//   exit 0 cleanly. The select screen and the chat screen each manage their
+//   own alt screen; the transition leaves zero orphaned listeners/handles.
+// - Non-TTY stdin with no args: plain-output fallback (help text, exit 0) —
+//   a non-interactive stdin cannot drive the TUI. This mirrors the old
+//   clack prompt's EOF behavior (menu printed, exit 0) without a renderer.
+// - Direct modes: the orchestrators pick the TUI (TTY stdin) or the
+//   plain-output + piped-input path (non-TTY stdin) internally.
+// - help: plain text, printed BEFORE any renderer starts.
+// - No \x1Bc clear-screen hack: the renderer manages the alt screen.
+
+import { formatHelp, theme } from './ui.js';
 import { startClient } from './client-mode.js';
 import { startHotspot } from './server-mode.js';
+import { openModeSelect } from './ui/select-screen.js';
 
 const args = process.argv.slice(2);
 const mode = args[0];
 
-async function askMode(): Promise<void> {
-  showBanner();
-  intro(theme.bold('Choose your connection mode'));
-
-  const selected = await select({
-    message: 'How are you connecting?',
-    options: [
-      {
-        value: 'wifi',
-        label: `${theme.brand('📡  WiFi Client')}`,
-        hint: 'Connect to an existing server on the network',
-      },
-      {
-        value: 'hotspot',
-        label: `${theme.accent('📶  Hotspot Server')}`,
-        hint: 'Create a server and accept connections',
-      },
-    ],
-  });
-
-  if (isCancel(selected)) {
-    outro(theme.muted('Cancelled. Goodbye!'));
-    process.exit(0);
-  }
-
-  if (selected === 'wifi') {
-    outro(theme.success('Starting WiFi client mode...'));
-    startClient();
-  } else if (selected === 'hotspot') {
-    outro(theme.success('Starting hotspot/server mode...'));
-    startHotspot();
-  }
-}
-
 async function run(mode: string | undefined): Promise<void> {
-  process.stdout.write('\x1Bc');
   switch (mode) {
     case 'client':
     case 'wifi':
-      showBanner('client');
-      startClient();
+      await startClient();
       break;
     case 'hotspot':
     case 'server':
-      showBanner('hotspot');
-      startHotspot();
+      await startHotspot();
       break;
     case 'help':
     case '--help':
@@ -62,7 +44,14 @@ async function run(mode: string | undefined): Promise<void> {
       formatHelp();
       break;
     case undefined:
-      await askMode();
+      if (process.stdin.isTTY) {
+        const selected = await openModeSelect();
+        if (selected === 'quit') process.exit(0);
+        await (selected === 'client' ? startClient() : startHotspot());
+      } else {
+        formatHelp();
+        process.exit(0);
+      }
       break;
     default:
       console.log(theme.error(`Unknown mode: ${mode}\n`));
@@ -71,4 +60,7 @@ async function run(mode: string | undefined): Promise<void> {
   }
 }
 
-run(mode);
+run(mode).catch((err) => {
+  console.error(`[LANText] Fatal: ${err instanceof Error ? err.stack : String(err)}`);
+  process.exit(1);
+});

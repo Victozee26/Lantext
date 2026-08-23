@@ -20,11 +20,15 @@
   terminal presentation in focused modules.
 - Preserve the existing boundaries unless a change explicitly requires
   restructuring them:
-  - `src/main.ts` handles CLI dispatch and interactive mode selection.
-  - `src/client-mode.ts` and `src/server-mode.ts` coordinate runtime modes.
+  - `src/main.ts` handles CLI dispatch and interactive mode selection
+    (OpenTUI mode-select screen on TTY stdin; plain help fallback otherwise).
+  - `src/client-mode.ts` and `src/server-mode.ts` coordinate runtime modes:
+    build ChatSession adapters over the transports, run the OpenTUI chat
+    screen on TTY stdin, and the plain-output + piped-input path otherwise.
   - `src/client.ts` and `src/hotspot.ts` own network behavior and lifecycle.
-  - `src/input.ts` owns terminal and piped-input behavior.
-  - `src/ui.ts` owns terminal rendering and display helpers.
+  - `src/input.ts` owns piped (non-TTY) input behavior.
+  - `src/ui.ts` owns plain-text non-TTY display helpers (help text, piped
+    output lines, debug logging).
   - `src/utils.ts` owns shared constants, network helpers, and message shape.
 
 ## Development Approach
@@ -89,8 +93,12 @@ Before modifying anything:
   a deliberate, end-to-end change.
 - Clean up sockets, timers, readline interfaces, and process handlers on every
   shutdown or retry path.
-- Keep terminal rendering concerns in `src/ui.ts`; do not bury network or
-  protocol behavior in presentation helpers.
+- Keep terminal rendering concerns in `src/ui.ts` (plain-text non-TTY
+  helpers) and `src/ui/` (OpenTUI); do not bury network or protocol behavior
+  in presentation helpers. Session adapters (`ChatSession` in
+  `src/ui/session-adapter.ts`) are the only channel between transports and
+  the UI, and they buffer events emitted before the first subscriber
+  attaches (`src/ui/buffered-session.ts`) so no transport event is lost.
 - Keep environment-variable behavior (`DEBUG` and `SERVER`) compatible with
   the README unless the documentation is updated in the same change.
 - Update `package.json`, lockfiles, and documentation together when a change

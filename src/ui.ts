@@ -1,4 +1,5 @@
-// ui.js - Shared UI helpers (Claude Code-style terminal UI)
+// ui.js - Plain-text helpers for the non-TTY paths (help text, piped output
+// lines, debug logging). OpenTUI rendering lives under src/ui/.
 import chalk from 'chalk';
 import boxen from 'boxen';
 import ora from 'ora';
@@ -83,14 +84,6 @@ export function statusError(label: string, msg: string): void {
   console.log(`  ${icon} ${prefix} ${theme.dim('│')} ${theme.error(msg)}`);
 }
 
-export function statusWarn(label: string, msg: string): void {
-  const icon = theme.warning('⚠');
-  const prefix = label === 'CLIENT'
-    ? theme.brand(label)
-    : theme.accent(label);
-  console.log(`  ${icon} ${prefix} ${theme.dim('│')} ${theme.warning(msg)}`);
-}
-
 // ─── Incoming Messages ────────────────────────────────────────
 export function formatIncoming(envelope: MessageEnvelope): void {
   const ts = timestamp();
@@ -164,11 +157,6 @@ export function createSpinner(text: string) {
     color: 'cyan',
     spinner: 'dots',
   });
-}
-
-// ─── Prompt ────────────────────────────────────────────────────
-export function getPrompt() {
-  return theme.prompt('❯ ');
 }
 
 // ─── Client Connect/Disconnect Badges ──────────────────────────
