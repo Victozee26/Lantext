@@ -2,8 +2,8 @@
 
 import { getVersion } from '../protocol/version.js';
 
-export function formatHelp(): void {
-  const title = `LANText v${getVersion()}`;
+export function formatHelp(injectedVersion?: string): void {
+  const title = `LANText v${injectedVersion ?? getVersion()}`;
   const desc = 'Local Area Network Chat Application';
 
   const sections = [

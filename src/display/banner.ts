@@ -4,14 +4,14 @@ import { box } from './box.js';
 import { getLocalIP } from '../protocol/network.js';
 import { getVersion } from '../protocol/version.js';
 
-export function showBanner(mode?: string): void {
+export function showBanner(mode?: string, injectedVersion?: string): void {
   const ip = getLocalIP();
   const modeLabel = mode ? `  ${mode.toUpperCase()} MODE` : '';
 
   const title = `LANText`;
   const subtitle = '  Local Area Network Chat';
   const network = `  Network: ${ip}`;
-  const version = `  v${getVersion()}`;
+  const version = `  v${injectedVersion ?? getVersion()}`;
 
   const content = [
     '',

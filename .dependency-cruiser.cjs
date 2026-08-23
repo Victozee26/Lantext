@@ -25,6 +25,13 @@ module.exports = {
       to: { path: '^src/protocol/network' },
     },
     {
+      name: 'ui-no-protocol-version-direct',
+      comment: 'UI must not import version directly — receive via props (injected from package.json)',
+      severity: 'error',
+      from: { path: '^src/ui' },
+      to: { path: '^src/protocol/version' },
+    },
+    {
       name: 'no-utils-barrel',
       comment: 'utils barrel is deprecated',
       severity: 'warn',

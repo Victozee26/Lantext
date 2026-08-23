@@ -13,6 +13,9 @@
     "README.md"
   ],
   "scripts": {
+    "gen:version": "node scripts/generate-version.mjs",
+    "prebuild": "npm run gen:version",
+    "pretypecheck": "npm run gen:version",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
