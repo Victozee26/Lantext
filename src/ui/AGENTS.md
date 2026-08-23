@@ -72,10 +72,19 @@
   CRLF/CR→LF normalization before `insertText`, preventing stray `\r`/ANSI
   and keeping a single undo entry; `handleSubmit` also normalizes
   CRLF/CR→LF and strips leading/trailing blank lines before `onSubmit`,
-  preserving interior `\n` as a single multi-line message. The compose card
-  reserves its two border rows plus one editor row (`minHeight={3}`) and the
-  card/editor/composer wrapper use `flexShrink={0}`; reduced terminal height
-  must shrink the feed before putting editor text on a border.
+  preserving interior `\n` as a single multi-line message. Non-bracketed
+  pastes (e.g. Gboard clipboard on Termux, which commits text as rapid key
+  events without the ESC[200~…ESC[201~ envelope) are coalesced by a
+  40 ms submit debounce: each Enter's line is buffered and the editor is
+  cleared for the next line; the timer is rearmed per Enter. On flush a
+  single buffered line is sent normally; multiple buffered lines (or a
+  buffered line plus a trailing partial line that didn't end with Enter)
+  are joined with `\n` and inserted back into the editor as a single
+  multi-line buffer (Shift+Enter semantics) so the user can send once.
+  Interior blank lines are preserved via empty buffered entries. The compose
+  card reserves its two border rows plus one editor row (`minHeight={3}`) and
+  the card/editor/composer wrapper use `flexShrink={0}`; reduced terminal
+  height must shrink the feed before putting editor text on a border.
 - Layout facts: nested flex rows measure 0 height in a column layout -
   give status-bar rows explicit `height={1}`; `<select>` needs explicit
   width/height. Feed auto-scroll uses `stickyScroll` +
