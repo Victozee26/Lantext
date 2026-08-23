@@ -247,6 +247,9 @@ relevant child `AGENTS.md`.
   narrower durable boundary requires a child contract.
 - `asset/` - Project assets. The root document owns this scope until a narrower
   durable boundary requires a child contract.
+- `plans/` - Durable implementation plans for approved multi-phase work. The
+  root document owns this scope; plans are work contracts until superseded or
+  completed and archived.
 - `.agents/` - Vendored third-party skill documentation pinned by
   `skills-lock.json`. Treat as read-only reference material; do not edit
   generated content by hand. The root document owns this scope.
