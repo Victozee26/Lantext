@@ -65,16 +65,17 @@
   newline. Failed sends keep text and show the hint via `onKeyDown`
   clearing (content-change events arrive deferred from the native edit
   buffer and would clobber it). The card border turns warning-colored while
-  the retry hint is up; the textarea contract (minHeight 1 / maxHeight 3)
-  is preserved but bracketed paste is intercepted via `usePaste` to
-  `decodePasteBytes` → `stripAnsiSequences` → CRLF/CR→LF normalization
-  before `insertText`, preventing stray `\r`/ANSI and keeping a single undo
-  entry; `handleSubmit` also normalizes CRLF/CR→LF and strips leading/
-  trailing blank lines before `onSubmit`, preserving interior `\n` as a
-  single multi-line message. The compose card reserves its two border rows
-  plus one editor row (`minHeight={3}`) and the card/editor/composer wrapper
-  use `flexShrink={0}`; reduced terminal height must shrink the feed before
-  putting editor text on a border.
+  the retry hint is up; the textarea grows `minHeight 1` to
+  `maxHeight = max(3, floor(termHeight * 0.33))` via `useTerminalDimensions`
+  (33 % of screen, reactive) and scrolls beyond; bracketed paste is
+  intercepted via `usePaste` to `decodePasteBytes` → `stripAnsiSequences` →
+  CRLF/CR→LF normalization before `insertText`, preventing stray `\r`/ANSI
+  and keeping a single undo entry; `handleSubmit` also normalizes
+  CRLF/CR→LF and strips leading/trailing blank lines before `onSubmit`,
+  preserving interior `\n` as a single multi-line message. The compose card
+  reserves its two border rows plus one editor row (`minHeight={3}`) and the
+  card/editor/composer wrapper use `flexShrink={0}`; reduced terminal height
+  must shrink the feed before putting editor text on a border.
 - Layout facts: nested flex rows measure 0 height in a column layout -
   give status-bar rows explicit `height={1}`; `<select>` needs explicit
   width/height. Feed auto-scroll uses `stickyScroll` +

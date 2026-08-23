@@ -22,8 +22,8 @@
 // event is fed by deferred NATIVE edit-buffer events that arrive after the
 // submit dispatch and would clobber the hint (verified in the Phase 3
 // harness; key events are synchronous, content events are not).
-// The textarea grows with content up to maxHeight (3 lines) and scrolls
-// internally beyond that.
+// The textarea grows with content up to 33 % of the terminal height and
+// scrolls internally beyond that (reactive via useTerminalDimensions).
 //
 // Frame: the card's border turns warning-colored while the retry hint is
 // up. The hint row sits ABOVE the card and only renders when set (same
@@ -37,7 +37,7 @@
 import { useRef, useState } from 'react';
 import type { KeyBinding, KeyEvent, TextareaRenderable } from '@opentui/core';
 import { decodePasteBytes, stripAnsiSequences } from '@opentui/core';
-import { usePaste } from '@opentui/react';
+import { usePaste, useTerminalDimensions } from '@opentui/react';
 import { THEME } from '../theme.js';
 
 function normalizeLineEndings(text: string): string {
@@ -74,6 +74,11 @@ export interface ComposerProps {
 export function Composer({ onSubmit, placeholder }: ComposerProps) {
   const editorRef = useRef<TextareaRenderable>(null);
   const [notConnected, setNotConnected] = useState(false);
+  const { height: termHeight } = useTerminalDimensions();
+  // 33 % of the terminal height, at least 3 rows so a tiny terminal still
+  // shows the previous 3-line behaviour. Falls back to 3 before the first
+  // dimension measurement arrives.
+  const computedMaxHeight = Math.max(3, Math.floor((termHeight || 24) * 0.33));
 
   // Intercept bracketed paste before the textarea's native handlePaste.
   // Native handler would insert raw bytes with \r preserved and only strip
@@ -141,7 +146,7 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
           onKeyDown={handleKeyDown}
           focused
           minHeight={1}
-          maxHeight={3}
+          maxHeight={computedMaxHeight}
           flexShrink={0}
           placeholder={placeholder ?? 'Message (Enter to send · Shift+Enter newline)'}
           placeholderColor={THEME.muted}
