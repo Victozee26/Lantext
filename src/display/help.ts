@@ -1,6 +1,5 @@
 // help.ts - Help text rendering.
 
-import { box } from './box.js';
 import { getVersion } from '../protocol/version.js';
 
 export function formatHelp(): void {
@@ -38,5 +37,5 @@ export function formatHelp(): void {
     '',
   ];
 
-  console.log(box(sections, 72));
+  console.log(sections.join('\n'));
 }
