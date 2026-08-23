@@ -29,6 +29,11 @@ export interface ChatSessionState {
   clientCount: number;
   /** Last `error` event message, or null. */
   lastError: string | null;
+  /** Display-only local echo of a successfully sent message. Transports do
+   *  NOT loop local sends back into 'message' (the server excludes the
+   *  originating socket from broadcast and never re-emits its own sends),
+   *  so the UI appends its own row after adapter.send() succeeds. */
+  appendOwn: (envelope: MessageEnvelope) => void;
 }
 
 function pushCapped<T>(prev: T[], value: T, cap: number): T[] {
@@ -80,5 +85,16 @@ export function useChatSession(adapter: ChatSession): ChatSessionState {
     };
   }, [adapter]);
 
-  return { messages, status, discoveredPeers, connectedAddress, serverPort, clientCount, lastError };
+  return {
+    messages,
+    status,
+    discoveredPeers,
+    connectedAddress,
+    serverPort,
+    clientCount,
+    lastError,
+    appendOwn: (envelope: MessageEnvelope): void => {
+      setMessages((prev) => pushCapped(prev, envelope, MAX_MESSAGE_ROWS));
+    },
+  };
 }

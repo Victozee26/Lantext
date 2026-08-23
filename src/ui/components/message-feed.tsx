@@ -1,13 +1,21 @@
 // message-feed.tsx - Scrollable message history rendered from transport
-// MessageEnvelope rows.
+// MessageEnvelope rows as messenger-style chat bubbles.
 //
 // Own-sent vs received (MARKER approach): rows whose envelope.sender matches
-// the `ownSender` prop render with a '❯' marker and THEME.sent text; every
-// other row gets a '·' marker and default text. Sender names are always
-// THEME.sender (purple, matching the old non-TTY UI) and timestamps always
-// THEME.muted. Phase 4 supplies ownSender once the orchestrators define the
-// local operator identity; until then no row matches and every row renders
-// in received style.
+// the `ownSender` prop render as right-aligned green-tinted bubbles with the
+// timestamp in the top border title; every other row renders as a
+// left-aligned slate bubble titled with the sender (purple) and a muted
+// timestamp row inside. Phase 4 note: app.tsx now always supplies ownSender
+// ('HOTSPOT' for server mode, getLocalIP() for client mode), and sent
+// messages are echoed locally by use-chat-session.appendOwn — transports do
+// not loop local sends back into 'message'.
+//
+// Layout facts relied on (see AGENTS.md):
+// - Bubble boxes shrink-wrap via alignSelf ("flex-end"/"flex-start") inside
+//   the scrollbox column; maxWidth "80%" forces word wrap of long lines.
+// - The inner meta ROW (timestamp) carries explicit height={1}: nested flex
+//   rows measuring <text> children can collapse to 0 in a column layout.
+// - Content <text> nodes measure their wrapped height; wrapMode="word".
 //
 // Auto-scroll: ScrollBox `stickyScroll` + `stickyStart="bottom"` — the
 // renderable tracks sticky state internally and disengages on manual
@@ -20,28 +28,71 @@ import { THEME } from '../theme.js';
 
 export interface MessageFeedProps {
   messages: MessageEnvelope[];
-  /** Sender identity styled as own-sent rows; null/undefined disables it. */
+  /** Sender identity styled as own-sent bubbles; null/undefined disables it. */
   ownSender?: string | null;
 }
 
 export function MessageFeed({ messages, ownSender }: MessageFeedProps) {
   return (
-    <scrollbox stickyScroll stickyStart="bottom" flexGrow={1} focused={false}>
+    <scrollbox
+      stickyScroll
+      stickyStart="bottom"
+      flexGrow={1}
+      focused={false}
+      verticalScrollbarOptions={{
+        trackOptions: { foregroundColor: THEME.border },
+      }}
+    >
+      {messages.length === 0 ? (
+        <box flexDirection="column" alignItems="center" width="100%" paddingTop={1}>
+          <text style={{ fg: THEME.muted }}>no messages yet — say something</text>
+        </box>
+      ) : null}
       {messages.map((envelope, index) => (
-        <MessageRow key={index} envelope={envelope} own={envelope.sender === ownSender} />
+        <MessageBubble key={index} envelope={envelope} own={envelope.sender === ownSender} />
       ))}
     </scrollbox>
   );
 }
 
-function MessageRow({ envelope, own }: { envelope: MessageEnvelope; own: boolean }) {
+function MessageBubble({ envelope, own }: { envelope: MessageEnvelope; own: boolean }) {
   const ts = formatTimestamp(envelope.timestamp);
+  if (own) {
+    return (
+      <box
+        alignSelf="flex-end"
+        maxWidth="80%"
+        borderStyle="rounded"
+        border
+        borderColor={THEME.sent}
+        backgroundColor={THEME.selfBg}
+        title={` ${ts} `}
+        titleColor={THEME.muted}
+        paddingLeft={2}
+        paddingRight={2}
+      >
+        <text style={{ fg: THEME.sent }} wrapMode="word">{envelope.text}</text>
+      </box>
+    );
+  }
   return (
-    <box flexDirection="row" paddingLeft={1} paddingRight={1}>
-      <text style={{ fg: own ? THEME.sent : THEME.muted }}>{own ? '❯' : '·'}</text>
-      <text style={{ fg: own ? THEME.sent : THEME.sender }}> {envelope.sender}</text>
-      <text style={{ fg: THEME.muted }}> {ts}</text>
-      <text style={{ fg: own ? THEME.sent : undefined }}>  {envelope.text}</text>
+    <box
+      alignSelf="flex-start"
+      maxWidth="80%"
+      borderStyle="rounded"
+      border
+      borderColor={THEME.border}
+      backgroundColor={THEME.otherBg}
+      title={` ${envelope.sender} `}
+      titleColor={THEME.sender}
+      paddingLeft={2}
+      paddingRight={2}
+    >
+      <box flexDirection="row" height={1}>
+        <box flexGrow={1} />
+        <text style={{ fg: THEME.muted }}>{ts}</text>
+      </box>
+      <text wrapMode="word">{envelope.text}</text>
     </box>
   );
 }

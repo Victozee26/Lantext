@@ -16,6 +16,9 @@
 //   args and inherited stdio; forward SIGINT/SIGTERM to the child while it
 //   runs; propagate the child's exit code, or 128 + signal number when it
 //   died from a signal.
+// - The node FFI ExperimentalWarning writes to stderr mid-frame and would
+//   corrupt the TUI's first paint, so the relaunch also passes
+//   --disable-warning=ExperimentalWarning (npm scripts embed it too).
 // - Spawn failure: one concise stderr line, exit 127.
 
 import { spawn } from 'node:child_process';
@@ -25,6 +28,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FFI_FLAG = '--experimental-ffi';
+const WARNING_FLAG = '--disable-warning=ExperimentalWarning';
 
 if (process.execArgv.includes(FFI_FLAG)) {
   await import('./main.js');
@@ -36,7 +40,7 @@ if (process.execArgv.includes(FFI_FLAG)) {
   const shimPath = realpathSync(fileURLToPath(import.meta.url));
   const mainPath = join(dirname(shimPath), 'main.js');
 
-  const child = spawn(process.execPath, [FFI_FLAG, mainPath, ...process.argv.slice(2)], {
+  const child = spawn(process.execPath, [FFI_FLAG, WARNING_FLAG, mainPath, ...process.argv.slice(2)], {
     stdio: 'inherit',
   });
 

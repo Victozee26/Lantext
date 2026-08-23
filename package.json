@@ -16,10 +16,10 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build",
-    "start": "node --experimental-ffi dist/main.js",
-    "client": "node --experimental-ffi dist/main.js client",
-    "hotspot": "node --experimental-ffi dist/main.js hotspot",
-    "dev": "npm run build && DEBUG=true node --experimental-ffi dist/main.js"
+    "start": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js",
+    "client": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js client",
+    "hotspot": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js hotspot",
+    "dev": "npm run build && DEBUG=true node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js"
   },
   "keywords": [
     "chat",

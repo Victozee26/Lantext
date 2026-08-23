@@ -1,9 +1,13 @@
 // status-bar.tsx - Bottom status line(s).
 //
-// Line 1: connection state (listening port for the server, connected address
-// or last status message for the client), online client count (server mode),
-// and a DEBUG chip when process.env.DEBUG is truthy.
+// Line 1: a colored state dot + connection text (listening port for the
+// server, connected address or last status message for the client), with
+// right-aligned chips: online client count (server mode) and a DEBUG chip
+// when process.env.DEBUG is truthy.
 // Line 2: the last error (THEME.error), always a fixed 1-row slot.
+//
+// Dot color precedence: error > server listening (accent) / client
+// connected (success) / otherwise warning while unestablished.
 //
 // OpenTUI 0.5.6 layout facts verified in the Phase 3 app harness (via yoga
 // computed heights and renderable tree dumps):
@@ -42,6 +46,7 @@ export function StatusBar({
   lastError,
 }: StatusBarProps) {
   const debugOn = Boolean(process.env.DEBUG);
+  const established = isServer ? serverPort !== null : connectedAddress !== null;
   const connection = isServer
     ? serverPort !== null
       ? `listening on :${serverPort}`
@@ -50,12 +55,32 @@ export function StatusBar({
       ? `connected to ${connectedAddress}`
       : (status ?? 'searching…');
 
+  const dotColor = lastError !== null
+    ? THEME.error
+    : established
+      ? (isServer ? THEME.accent : THEME.success)
+      : THEME.warning;
+  const textColor = lastError !== null
+    ? THEME.error
+    : established
+      ? (isServer ? THEME.accent : THEME.info)
+      : THEME.muted;
+
   return (
-    <box flexDirection="column" paddingLeft={1} paddingRight={1} paddingBottom={1}>
+    <box flexDirection="column" paddingLeft={2} paddingRight={2} paddingBottom={0}>
       <box flexDirection="row" height={1}>
-        <text style={{ fg: isServer ? THEME.accent : THEME.info }}>{connection}</text>
-        {isServer ? <text style={{ fg: THEME.muted }}> · {clientCount} online</text> : null}
-        {debugOn ? <text style={{ fg: THEME.warning }}>DEBUG</text> : null}
+        <text style={{ fg: dotColor }}>● </text>
+        <text style={{ fg: textColor }}>{connection}</text>
+        {isServer && established ? (
+          <text style={{ fg: THEME.muted }}> · {clientCount} online</text>
+        ) : null}
+        <box flexGrow={1} />
+        {debugOn ? <text style={{ fg: THEME.warning }}>DEBUG </text> : null}
+        <text style={{ fg: THEME.muted }}>[</text>
+        <text style={{ fg: isServer ? THEME.accent : THEME.brand }}>
+          {isServer ? 'server' : 'client'}
+        </text>
+        <text style={{ fg: THEME.muted }}>]</text>
       </box>
       <box height={1}>
         {lastError !== null ? <text style={{ fg: THEME.error }}>✖ {lastError}</text> : null}

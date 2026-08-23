@@ -94,6 +94,10 @@ Before modifying anything:
 - Treat UDP discovery, TCP messaging, configured ports, discovery messages, and
   newline-delimited JSON envelopes as protocol contracts. Change them only as
   a deliberate, end-to-end change.
+- Every launch path (`bin` shim relaunch and the npm scripts) passes
+  `--disable-warning=ExperimentalWarning`: node's FFI warning writes to
+  stderr mid-frame and corrupts TUI paint. Keep the flag on new launch
+  paths.
 - Clean up sockets, timers, readline interfaces, and process handlers on every
   shutdown or retry path.
 - Keep terminal rendering concerns in `src/ui.ts` (plain-text non-TTY
