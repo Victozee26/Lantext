@@ -252,10 +252,14 @@ relevant child `AGENTS.md`.
 
 ## Child DOX Index
 
-- No child `AGENTS.md` files currently exist.
-- `src/` - Application source for CLI dispatch, input, UI, network transport,
-  and runtime mode orchestration. The root document owns this scope until a
-  narrower durable boundary requires a child contract.
+- `src/ui/` - OpenTUI React terminal UI: session adapter boundary, renderer
+  runtime and shutdown ownership, chat screen, and mode-select screen. Owns
+  TTY presentation; non-TTY display stays in `src/ui.ts` under the root
+  contract.
+- `src/` (outside `src/ui/`) - Application source for CLI dispatch, bin shim,
+  input, plain-text non-TTY UI helpers, network transport, and runtime mode
+  orchestration. The root document owns this scope until a narrower durable
+  boundary requires a child contract.
 - `asset/` - Project assets. The root document owns this scope until a narrower
   durable boundary requires a child contract.
 - `plans/` - Durable implementation plans for approved multi-phase work. The

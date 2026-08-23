@@ -1,7 +1,7 @@
 # Plan: LanText UI Refactor to OpenTUI React
 
-Status: approved; reviewed (verdict READY WITH CHANGES, all findings folded
-in); not started
+Status: implemented through Phase 6; see `src/ui/AGENTS.md` for the live
+contracts that supersede this plan
 Owner: root `AGENTS.md` until `src/ui/` earns a child contract
 Target: replace the entire terminal UI surface (clack prompts, banner, chat
 screen) with an OpenTUI React application while preserving transport,
