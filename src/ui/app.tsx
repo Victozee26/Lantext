@@ -1,10 +1,10 @@
 // app.tsx - Full LanText TUI layout: header banner on top, scrollable
-// bubble feed in the middle, composer card at the bottom, status bar
-// bottom-most. Mode badge, server-only bits (client count, listening state)
-// and the keyboard shutdown path are wired from the real useChatSession
-// state.
+// divider-separated message feed in the middle, composer card at the bottom,
+// status bar bottom-most. Mode badge, server-only bits (client count,
+// listening state) and the keyboard shutdown path are wired from the real
+// useChatSession state.
 //
-// Own-sender identity (bubble alignment + local echo): the server stamps
+// Own-sender identity (row accent + local echo): the server stamps
 // its own sends 'HOTSPOT' (src/hotspot.ts); a client's messages are stamped
 // by the server with the client's IP (createEnvelope(socket.remoteAddress)),
 // which equals getLocalIP() locally. Transports never loop local sends back

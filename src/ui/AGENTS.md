@@ -4,7 +4,7 @@
 
 - React-over-OpenTUI terminal UI for every TTY session of LanText: the
   interactive mode-select hero screen and the chat screen (header banner,
-  bubble feed, composer card, status bar).
+  divider-separated message feed, composer card, status bar).
 - Non-TTY sessions never enter this scope; they stay on the plain-text
   helpers in `src/ui.ts` owned by the root contract.
 
@@ -79,29 +79,43 @@
 - Layout facts: nested flex rows measure 0 height in a column layout -
   give status-bar rows explicit `height={1}`; `<select>` needs explicit
   width/height. Feed auto-scroll uses `stickyScroll` +
-  `stickyStart: "bottom"`; its scrollbar thumb is recolored via
-  `verticalScrollbarOptions.trackOptions.foregroundColor`.
+  `stickyStart: "bottom"` with both scrollbars hidden
+  (`verticalScrollbarOptions={{visible:false}}` / `horizontalScrollbarOptions`)
+  so no right thumb (█) is drawn — the thumb was included in terminal
+  native selection and polluted manual copy.
 - Gradient text shape (mode-select): render per-character colors as styled
   `<span>` children INSIDE one `<text>`. Do NOT restructure them into many
   sibling 1-char `<text>` nodes in a row box: under a centered column such
   rows intermittently measure to zero and drop out of layout AND paint
   (observed on 0.5.6; spans inside a single text renderable are reliable).
-- Bubble layout: bubbles shrink-wrap via `alignSelf` ("flex-end" own /
-  "flex-start" incoming) inside the scrollbox column; `maxWidth: "80%"`
-  forces `wrapMode="word"` wrapping; no timestamps rendered; incoming
-  bubble title = sender name (purple), own bubble has no title; bubbles
-  are border-only with no `backgroundColor` (prevents rounded-corner bleed);
-  multi-line `envelope.text` is split on `\n` and rendered with `<br />`
-  inside a single `<text>` so pasted line breaks survive layout; scroll
-  feed uses `gap={1}` between bubbles.
-- Bubble copy: each bubble is `onMouseDown` double-click (400 ms) →
+- Message feed layout: full-width divider log (replaces 80%-width rounded
+  bubbles). Each row is a native left-border box
+  `border={["left"]} borderColor={accent} customBorderChars={{vertical:"┃"}}`
+  (mirrors `../opencode/packages/tui/src/ui/border.ts:15` `SplitBorder` and
+  `packages/tui/src/routes/session/index.tsx:1398` `UserMessage` — `EmptyBorder`
+  zeroed + `vertical:"┃"`). The border wraps header+body so `┃` spans the
+  full wrapped height (Box chrome, never Text, so drag-copy clean). Header
+  is `height={1}` `paddingLeft={2}` (sender bold purple/green + muted
+  `· HH:MM` + `· you` + `✓ copied`). Body is `paddingLeft={2}` `wrapMode="word"`.
+  No `alignSelf`/`maxWidth`. Dividers are `height={1} width="100%"
+  overflow="hidden"` with `"─".repeat(300)` in `THEME.border` clipped to
+  width — the polished `THEME.border` version of the user's `________`
+  sketch — wrapped in `paddingTop={1}`; scrollbox `gap={0}` last row spacer
+  `height={1}`. Multi-line `envelope.text` split on `\n` with `<br />`
+  inside single `<text>`; `formatTime()` `HH:MM`. Chrome excluded via
+  `selectable={false}` on header/divider/placeholder so
+  `Selection.getSelectedText()` only returns bodies.
+- Message copy: each row is `onMouseDown` double-click (400 ms) →
   `createHostClipboard` + `createClipboard({ host, terminal:
   createRendererClipboardAdapter(renderer) })` → `writeText(text,
   { destination: "best-available" })` with OSC52 fallback via
-  `renderer.copyToClipboardOSC52`; success shows `THEME.success`
-  border + `bottomTitle=" copied "` for 900 ms (per-bubble state,
+  `renderer.copyToClipboardOSC52`; success shows inline `✓ copied` in the
+  header + tints the left accent `THEME.success` for 900 ms (per-row state,
   timeout cleared on unmount). Only primary button (0) triggers; bubbling
-  from inner `<text>` to outer `<box>` is intentional.
+  from inner `<text>` to outer `<box>` is intentional. Drag selection uses
+  the same `selectable` boundary — dragging across bodies yields only bodies
+  (verified via `mockMouse.drag` + `getSelectedText()`), while dragging
+  on header/divider yields no selection.
 
 ## Work Guidance
 
