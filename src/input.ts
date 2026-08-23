@@ -8,11 +8,14 @@
 import type { Interface } from 'node:readline';
 
 type MessageHandler = (message: string) => void;
+type EndHandler = () => void;
 
 /**
- * Sets up traditional stdin handling for piped input.
+ * Sets up traditional stdin handling for piped input. The optional end
+ * handler fires on stdin EOF so callers can shut down cleanly instead of
+ * lingering with open sockets.
  */
-function setupPipedInput(onMessage: MessageHandler): void {
+function setupPipedInput(onMessage: MessageHandler, onEnd?: EndHandler): void {
   process.stdin.setEncoding('utf8');
   let pipeBuffer = '';
 
@@ -28,6 +31,10 @@ function setupPipedInput(onMessage: MessageHandler): void {
       }
     });
   });
+
+  if (onEnd) {
+    process.stdin.on('end', onEnd);
+  }
 }
 
 /**
@@ -35,7 +42,7 @@ function setupPipedInput(onMessage: MessageHandler): void {
  * readline interface is only meaningful on a TTY, and TTY sessions now use
  * the OpenTUI composer instead.
  */
-export function setupInput(onMessage: MessageHandler): Interface | null {
-  setupPipedInput(onMessage);
+export function setupInput(onMessage: MessageHandler, onEnd?: EndHandler): Interface | null {
+  setupPipedInput(onMessage, onEnd);
   return null;
 }

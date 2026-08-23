@@ -103,6 +103,8 @@ function startClientPlain(serverAddress: string | undefined): void {
         if (client.send(text)) {
           formatSent(text);
         }
+      }, () => {
+        client.stop();
       });
     }
   });

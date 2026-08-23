@@ -128,6 +128,25 @@ DEBUG=true lantext client
 SERVER=192.168.1.5 lantext client
 ```
 
+`localhost` / `127.0.0.1` also work as the `SERVER` value.
+
+### Local Two-Terminal Test
+
+Both roles can run on one machine over the loopback interface:
+
+```bash
+# Terminal 1 - hotspot/server
+npm run hotspot
+
+# Terminal 2 - wifi client
+npm run client
+```
+
+Discovery probes `127.0.0.1`, so the client in terminal 2 finds the local
+server automatically; set `SERVER=127.0.0.1` to skip discovery. Run hotspot
+mode in only one session: a second server fails with `EADDRINUSE` while the
+ports are held.
+
 ## Architecture
 
 LanText uses UDP discovery to find servers on the local network and TCP for
@@ -171,7 +190,8 @@ should be verified with a client and hotspot on the appropriate local devices.
 Environment variables:
 
 - `DEBUG=true` - Enable debug logging
-- `SERVER=<ip>` - Specify server IP address (skips discovery)
+- `SERVER=<ip>` - Specify server IP address (skips discovery); `localhost`
+  and `127.0.0.1` work for same-machine testing
 
 ## License
 

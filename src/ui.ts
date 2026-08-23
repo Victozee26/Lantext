@@ -153,6 +153,7 @@ export function formatHelp(): void {
     `    $ lantext hotspot                # Direct hotspot mode`,
     `    $ DEBUG=true lantext client      # Client with debug`,
     `    $ SERVER=192.168.1.5 lantext client  # Specific server`,
+    `    $ SERVER=127.0.0.1 lantext client    # Localhost test`,
     '',
   ];
 

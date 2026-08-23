@@ -88,6 +88,8 @@ function startHotspotPlain(): void {
       setupInput((text) => {
         server.send(text);
         formatSent(text);
+      }, () => {
+        server.stop();
       });
     }
   });

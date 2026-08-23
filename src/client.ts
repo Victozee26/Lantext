@@ -60,6 +60,9 @@ export class LanClient extends EventEmitter {
       discoverySocket.send(msg, 0, msg.length, PORTS.UDP_DISCOVERY, `${subnet}.${i}`);
     }
 
+    // Loopback probe: makes same-host testing deterministic
+    discoverySocket.send(msg, 0, msg.length, PORTS.UDP_DISCOVERY, '127.0.0.1');
+
     discoverySocket.on('message', (msg, rinfo) => {
       try {
         const response = JSON.parse(msg.toString());
