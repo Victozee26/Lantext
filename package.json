@@ -1,6 +1,6 @@
 {
   "name": "lantext",
-  "version": "3.0.0-dev.0",
+  "version": "3.0.0",
   "description": "A local area network chat application for WiFi devices",
   "type": "module",
   "main": "dist/main.js",
