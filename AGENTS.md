@@ -28,7 +28,7 @@
    - `src/client-mode.ts` and `src/server-mode.ts` are thin routers (TTY vs non-TTY).
   - `src/modes/` owns mode TUI/plain presenters (`client-tui`, `client-plain`, `server-tui`, `server-plain`) for host/client.
   - `src/adapters/` owns ChatSession translation (`client-adapter`, `server-adapter`).
-  - `src/client.ts` + `src/client/` and `src/hotspot.ts` + `src/server/` own transport facades and focused submodules (discovery, connection/broadcast, reconnect).
+  - `src/client.ts` + `src/client/` and `src/hotspot.ts` + `src/server/` own transport facades and focused submodules (discovery, selection, connection/broadcast, reconnect).
   - `src/protocol/` is single source for wire contracts (`constants`, `envelope`, `codec`, `discovery`, `version`, `network`).
   - `src/server/identity.ts` owns the persisted per-install room identity
     (`hostId`, `name`) and its corrupt/unwritable recovery policy;
@@ -106,6 +106,10 @@ Before modifying anything:
   hosting. Discovery replies stay additive (`hostId`, `name`, `clients`,
   `version`, `port`) and must remain legacy-tolerant: a missing `hostId` is an
   anonymous room. `--name "<room>"` sets and persists the room name.
+- Client discovery is a collection, not a race. Keep the 700 ms window from
+  the first valid reply, the 1500 ms hard cap, dedupe by `hostId` (or source
+  address for legacy hosts), and the deterministic tie-break (most clients,
+  then lexicographic `hostId`/address). Never restore "first packet wins".
 - Every launch path (`bin` shim relaunch and the npm scripts) passes
   `--disable-warning=ExperimentalWarning`: node's FFI warning writes to
   stderr mid-frame and corrupts TUI paint. Keep the flag on new launch
@@ -280,7 +284,7 @@ relevant child `AGENTS.md`.
 
 - `src/protocol/` - Wire contracts: constants, envelope, codec, discovery reply parser/encoder, version, network. Single source of truth for ports/discovery/envelope.
 - `src/display/` - Plain-text display atoms for non-TTY paths. The root document owns this scope.
-- `src/client/` + `src/server/` - Focused transport submodules (discovery, connection/broadcast, persisted host identity). Facades `src/client.ts`/`src/hotspot.ts` own lifecycle.
+- `src/client/` + `src/server/` - Focused transport submodules (discovery, room selection, connection/broadcast, persisted host identity). Facades `src/client.ts`/`src/hotspot.ts` own lifecycle.
 - `src/adapters/` - ChatSession adapters over transports. The root document owns this scope.
 - `src/modes/` - Mode presenters (TUI vs plain for host/client). The root document owns this scope.
 - `src/ui/` - OpenTUI React terminal UI: session adapter boundary, renderer

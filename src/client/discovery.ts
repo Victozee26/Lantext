@@ -1,60 +1,103 @@
-// discovery.ts - UDP discovery for LanClient.
-// Single responsibility: scan subnet + loopback, emit found/debug.
+// discovery.ts - UDP discovery collection for LanClient.
+//
+// A LAN sweep is not a race. The old implementation connected to the first
+// reply and closed the socket, which made the outcome depend on packet
+// ordering. This module probes the /24 + loopback, then keeps collecting for
+// a short window so the caller can see every room before choosing.
+//
+// Timing contract:
+//   - hard cap      1500 ms from scan start (no reply still reports []),
+//   - collect window 700 ms from the FIRST valid reply,
+//   - both timers are finalize paths; whichever fires first wins.
+//
+// Dedupe: by hostId when present, otherwise by source address. A legacy host
+// has no identity, so two replies from one IP are one room. When the same
+// hostId answers from several interfaces, prefer the non-loopback address
+// (other devices can reach it) and then the lexicographically smaller address
+// so the result does not depend on packet order.
 
 import dgram, { type Socket as UdpSocket } from 'node:dgram';
-import { PORTS, DISCOVERY_MSG, FOUND_MSG } from '../protocol/constants.js';
+import { PORTS, DISCOVERY_MSG } from '../protocol/constants.js';
+import { parseDiscoveryReply, type DiscoveryReply } from '../protocol/discovery.js';
 import { getSubnet } from '../protocol/network.js';
 
 export interface DiscoveryDeps {
   getSubnet?: () => string;
   createSocket?: () => UdpSocket;
-  discoveryTimeout?: number;
+  /** Collection window after the first valid reply. Default 700 ms. */
+  collectWindowMs?: number;
+  /** Hard cap from scan start. Default 1500 ms. */
+  scanTimeoutMs?: number;
 }
 
 export interface DiscoveryCallbacks {
-  onFound: (address: string) => void;
+  /** Called exactly once with every deduped room (empty when nobody answers). */
+  onRooms: (rooms: DiscoveryReply[]) => void;
   onDebug: (msg: string) => void;
 }
 
-/** Starts one discovery scan. Returns cleanup that closes socket + timers. */
+function isLoopback(address: string): boolean {
+  return address === '127.0.0.1' || address === '::1';
+}
+
+function addressRank(address: string): string {
+  return `${isLoopback(address) ? '1' : '0'}:${address}`;
+}
+
+function roomKey(room: DiscoveryReply): string {
+  return room.hostId ? `host:${room.hostId}` : `addr:${room.address}`;
+}
+
+/** Start one discovery scan. Returns cleanup that closes the socket + timers. */
 export function startDiscovery(
   callbacks: DiscoveryCallbacks,
   deps: DiscoveryDeps = {},
 ): () => void {
   const getSubnetFn = deps.getSubnet ?? getSubnet;
   const createSocket = deps.createSocket ?? (() => dgram.createSocket('udp4'));
-  const timeoutMs = deps.discoveryTimeout ?? 5000;
+  const collectWindowMs = deps.collectWindowMs ?? 700;
+  const scanTimeoutMs = deps.scanTimeoutMs ?? 1500;
 
   const discoverySocket = createSocket();
   const subnet = getSubnetFn();
   const msg = Buffer.from(DISCOVERY_MSG);
+  const rooms = new Map<string, DiscoveryReply>();
 
-  let found = false;
-  let closed = false;
+  let finished = false;
+  let collectTimer: ReturnType<typeof setTimeout> | null = null;
+  let scanTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const close = (): void => {
-    if (!closed) {
-      closed = true;
-      try { discoverySocket.close(); } catch {}
-    }
+  const detach = (): void => {
+    discoverySocket.removeListener('message', onMessage as never);
+    discoverySocket.removeListener('error', onError);
   };
 
-  const timeout = setTimeout(() => {
-    close();
-    // caller handles retry via onFound not fired; no emit here to avoid spam
-  }, timeoutMs);
+  const finish = (): void => {
+    if (finished) return;
+    finished = true;
+    if (collectTimer) { clearTimeout(collectTimer); collectTimer = null; }
+    if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+    detach();
+    try { discoverySocket.close(); } catch {}
+    callbacks.onRooms([...rooms.values()]);
+  };
 
   const onMessage = (buf: Buffer, rinfo: { address: string }): void => {
-    try {
-      const response = JSON.parse(buf.toString());
-      if (response.type === FOUND_MSG && !found) {
-        found = true;
-        clearTimeout(timeout);
-        close();
-        callbacks.onFound(rinfo.address);
-      }
-    } catch (err) {
-      callbacks.onDebug(`Invalid discovery response: ${err instanceof Error ? err.message : String(err)}`);
+    if (finished) return;
+    const room = parseDiscoveryReply(buf.toString(), rinfo.address);
+    if (!room) {
+      callbacks.onDebug(`Invalid discovery reply from ${rinfo.address}`);
+      return;
+    }
+
+    const key = roomKey(room);
+    const existing = rooms.get(key);
+    if (!existing || addressRank(room.address) < addressRank(existing.address)) {
+      rooms.set(key, room);
+    }
+
+    if (!collectTimer) {
+      collectTimer = setTimeout(finish, collectWindowMs);
     }
   };
 
@@ -65,17 +108,24 @@ export function startDiscovery(
   discoverySocket.on('message', onMessage as Parameters<UdpSocket['on']>[1]);
   discoverySocket.on('error', onError);
 
-  // Scan subnet
+  scanTimer = setTimeout(finish, scanTimeoutMs);
+
+  // Scan subnet, then probe loopback last. The loopback probe races the LAN
+  // sweep, but the collect window means the race no longer decides the result.
   for (let i = 1; i <= 254; i++) {
     discoverySocket.send(msg, 0, msg.length, PORTS.UDP_DISCOVERY, `${subnet}.${i}`);
   }
-  // Loopback probe for same-host determinism
   discoverySocket.send(msg, 0, msg.length, PORTS.UDP_DISCOVERY, '127.0.0.1');
 
   return () => {
-    clearTimeout(timeout);
-    close();
-    discoverySocket.removeListener('message', onMessage as never);
-    discoverySocket.removeListener('error', onError);
+    if (finished) {
+      detach();
+      return;
+    }
+    finished = true;
+    if (collectTimer) { clearTimeout(collectTimer); collectTimer = null; }
+    if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+    detach();
+    try { discoverySocket.close(); } catch {}
   };
 }
