@@ -30,6 +30,8 @@ export interface LanClientOptions {
   /** Hard cap from scan start. Default 1500 ms. */
   discoveryScanMs?: number;
   retryDelay?: number;
+  /** Interactive mode defers N>1 room choices to the UI picker. */
+  interactive?: boolean;
   /** @internal DI seams — injectable for tests */
   startDiscovery?: typeof defaultStartDiscovery;
   createConnection?: typeof defaultCreateConnection;
@@ -49,6 +51,8 @@ export class LanClient extends EventEmitter {
   discoveryWindowMs: number;
   discoveryScanMs: number;
   retryDelay: number;
+  /** True when a TTY picker can resolve N>1 rooms. */
+  interactive: boolean;
   isStopped: boolean;
   isSearching: boolean;
   discoveryTimer: ReturnType<typeof setTimeout> | null;
@@ -74,6 +78,7 @@ export class LanClient extends EventEmitter {
     this.discoveryWindowMs = options.discoveryWindowMs ?? 700;
     this.discoveryScanMs = options.discoveryScanMs ?? 1500;
     this.retryDelay = options.retryDelay ?? 2000;
+    this.interactive = options.interactive ?? false;
     this.isStopped = false;
     this.isSearching = false;
     this.discoveryTimer = null;
@@ -114,6 +119,15 @@ export class LanClient extends EventEmitter {
             this.emit('debug', 'No rooms answered discovery');
             this.#scheduleDiscoveryRetry();
             return;
+          }
+
+          if (rooms.length > 1) {
+            this.emit('rooms', rooms);
+            if (this.interactive) {
+              this.isSearching = false;
+              this.emit('status', `Found ${rooms.length} rooms — choose one`);
+              return;
+            }
           }
 
           this.isSearching = false;
@@ -170,6 +184,7 @@ export class LanClient extends EventEmitter {
     this.#reconnectMisses = 0;
     this.serverAddress = room.address;
     this.serverPort = room.port;
+    this.emit('roomSelected', room);
     this.emit('discovered', room.address);
     this.connect(room.address);
   }

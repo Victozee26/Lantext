@@ -8,7 +8,7 @@ import { getLocalIP } from '../protocol/network.js';
 import { getVersion } from '../protocol/version.js';
 
 export async function startClientTUI(serverAddress: string | undefined): Promise<void> {
-  const client = new LanClient({ serverAddress });
+  const client = new LanClient({ serverAddress, interactive: true });
   const adapter = createClientAdapter(client);
   const ctx = {
     ownSender: getLocalIP(),

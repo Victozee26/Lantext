@@ -4,8 +4,9 @@
 
 import type { LanClient } from '../client.js';
 import { BufferedSession } from '../ui/buffered-session.js';
-import type { ChatSession } from '../ui/session-adapter.js';
+import type { ChatSession, RoomLostInfo } from '../ui/session-adapter.js';
 import type { MessageEnvelope } from '../protocol/envelope.js';
+import type { DiscoveryReply } from '../protocol/discovery.js';
 
 export function createClientAdapter(client: LanClient): ChatSession {
   const buffered = new BufferedSession();
@@ -14,6 +15,9 @@ export function createClientAdapter(client: LanClient): ChatSession {
   client.on('discovered', (address: string) => buffered.emit('discovered', address));
   client.on('connected', (address: string) => buffered.emit('connected', address));
   client.on('message', (envelope: MessageEnvelope) => buffered.emit('message', envelope));
+  client.on('rooms', (rooms: DiscoveryReply[]) => buffered.emit('rooms', rooms));
+  client.on('roomSelected', (room: DiscoveryReply) => buffered.emit('roomSelected', room));
+  client.on('roomLost', (room: RoomLostInfo) => buffered.emit('roomLost', room));
   client.on('debug', (message: string) => {
     buffered.emit('debug', message);
     if (message.startsWith('Connection error')) {
@@ -26,5 +30,8 @@ export function createClientAdapter(client: LanClient): ChatSession {
     off: (event, listener) => buffered.off(event, listener),
     send: (text) => client.send(text),
     stop: () => client.stop(),
+    selectRoom: (key) => client.selectRoom(key),
+    retryRoom: () => client.retryRoom(),
+    chooseAnotherRoom: () => client.chooseAnotherRoom(),
   };
 }

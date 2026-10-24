@@ -31,6 +31,30 @@ interface ClientCountEvent {
   totalClients: number;
 }
 
+/** One discovered room, as shown by the picker and status bar. Structurally
+ *  matches the transport's `DiscoveryReply` without importing transport code. */
+interface RoomInfo {
+  /** Stable room identity; null for legacy 3.0 hosts. */
+  hostId: string | null;
+  /** Human room name; null for legacy hosts. */
+  name: string | null;
+  /** Advertised online client count. */
+  clients: number;
+  /** Advertised host version; null for legacy hosts. */
+  version: string | null;
+  /** Advertised TCP port. */
+  port: number;
+  /** Source IP of the discovery reply. */
+  address: string;
+}
+
+/** Payload for the explicit roomLost event. */
+export interface RoomLostInfo {
+  hostId: string;
+  name: string;
+  address: string;
+}
+
 /**
  * Typed event map for a chat session. Each key maps to the listener
  * signature; `Parameters<ChatSessionEventMap[K]>` gives the payload types.
@@ -51,6 +75,16 @@ export interface ChatSessionEventMap {
   /** TCP connection to the server established. Payload: server IP string.
    *  Emitted by LanClient only. */
   connected: (address: string) => void;
+  /** Multiple rooms answered discovery and a choice is required. Payload:
+   *  every deduped room. Emitted by LanClient only; the client waits for
+   *  `selectRoom()` in interactive mode. */
+  rooms: (rooms: RoomInfo[]) => void;
+  /** The room this client is attached to (auto-selected or human choice).
+   *  Payload: `RoomInfo`. Emitted by LanClient only. */
+  roomSelected: (room: RoomInfo) => void;
+  /** Sticky reconnect gave up after three scans without the remembered
+   *  `hostId`. Payload: `RoomLostInfo`. Emitted by LanClient only. */
+  roomLost: (room: RoomLostInfo) => void;
   /** A chat message arrived. Payload: `MessageEnvelope` from
    *  src/protocol/envelope.ts (`{ sender, timestamp, text }`). LanClient: parsed from the
    *  newline-delimited JSON stream sent by the server. LanServer: built via
@@ -91,4 +125,11 @@ export interface ChatSession {
   /** Stop transport sockets/timers. Must be safe to call once only;
    *  repeated calls are guarded by the runtime's idempotent teardown. */
   stop(): void;
+  /** Client-only: pick a room from the last `rooms` payload. Key is `hostId`,
+   *  or the address for legacy hosts. Returns false when the room is gone. */
+  selectRoom?(key: string): boolean;
+  /** Client-only: retry the lost room after `roomLost`. */
+  retryRoom?(): void;
+  /** Client-only: leave the lost room and discover again. */
+  chooseAnotherRoom?(): void;
 }

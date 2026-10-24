@@ -3,6 +3,7 @@
 interface Spinner {
   start(): void;
   succeed(text?: string): void;
+  stop(): void;
 }
 
 export function createSpinner(label: string): Spinner {
@@ -38,6 +39,10 @@ export function createSpinner(label: string): Spinner {
       clear();
       if (animated) process.stderr.write('\r\x1b[K');
       if (text !== undefined) process.stderr.write(`  ✔ ${text}\n`);
+    },
+    stop(): void {
+      clear();
+      if (animated) process.stderr.write('\r\x1b[K');
     },
   };
 }

@@ -127,6 +127,56 @@ test('SERVER= bypasses discovery', () => {
   client.stop();
 });
 
+test('interactive N>1 waits for selectRoom and reports the selected room', () => {
+  const { scans, connections, starter, factory } = harness();
+  const client = new LanClient({
+    startDiscovery: starter,
+    createConnection: factory,
+    interactive: true,
+  });
+  const seen: DiscoveryReply[][] = [];
+  const selected: DiscoveryReply[] = [];
+  client.on('rooms', (rooms: DiscoveryReply[]) => seen.push(rooms));
+  client.on('roomSelected', (room: DiscoveryReply) => selected.push(room));
+
+  client.start();
+  scans[0].callbacks.onRooms([
+    room('host-a', '10.0.0.1', 7),
+    room('host-b', '10.0.0.2', 9),
+  ]);
+
+  assert.equal(connections.length, 0);
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].length, 2);
+
+  assert.equal(client.selectRoom('host-b'), true);
+  assert.equal(connections.length, 1);
+  assert.equal(connections[0].address, '10.0.0.2');
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0].hostId, 'host-b');
+
+  client.stop();
+});
+
+test('non-interactive N>1 emits rooms and still auto-connects', () => {
+  const { scans, connections, starter, factory } = harness();
+  const client = new LanClient({ startDiscovery: starter, createConnection: factory });
+  const seen: DiscoveryReply[][] = [];
+  client.on('rooms', (rooms: DiscoveryReply[]) => seen.push(rooms));
+
+  client.start();
+  scans[0].callbacks.onRooms([
+    room('host-a', '10.0.0.1', 7),
+    room('host-b', '10.0.0.2', 9),
+  ]);
+
+  assert.equal(seen.length, 1);
+  assert.equal(connections.length, 1);
+  assert.equal(connections[0].address, '10.0.0.2');
+
+  client.stop();
+});
+
 test('stop cancels a pending discovery retry', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { scans, starter, factory } = harness();
