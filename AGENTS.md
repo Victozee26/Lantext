@@ -29,7 +29,10 @@
   - `src/modes/` owns mode TUI/plain presenters (`client-tui`, `client-plain`, `server-tui`, `server-plain`) for host/client.
   - `src/adapters/` owns ChatSession translation (`client-adapter`, `server-adapter`).
   - `src/client.ts` + `src/client/` and `src/hotspot.ts` + `src/server/` own transport facades and focused submodules (discovery, connection/broadcast, reconnect).
-  - `src/protocol/` is single source for wire contracts (`constants`, `envelope`, `codec`, `version`, `network`).
+  - `src/protocol/` is single source for wire contracts (`constants`, `envelope`, `codec`, `discovery`, `version`, `network`).
+  - `src/server/identity.ts` owns the persisted per-install room identity
+    (`hostId`, `name`) and its corrupt/unwritable recovery policy;
+    `src/server/discovery.ts` advertises that identity in every UDP reply.
   - `src/display/` owns plain-text display atoms (`banner`, `status`, `format`, `help`, `spinner`, `clients`, `debug`, `theme`, `box`).
   - `src/ui.ts` and `src/utils.ts` were removed in 3.1. Import the concrete
     module (`src/display/*`, `src/protocol/*`) — no barrels.
@@ -94,6 +97,15 @@ Before modifying anything:
 - Treat UDP discovery, TCP messaging, configured ports, discovery messages, and
   newline-delimited JSON envelopes as protocol contracts. Change them only as
   a deliberate, end-to-end change.
+- Room identity is a persisted per-install contract. A host process is one
+  room: `hostId` must stay stable across restarts and must never be derived
+  from IP, MAC, or hostname. The identity file lives at
+  `$XDG_CONFIG_HOME/lantext/host.json` (fallback `~/.config/lantext/host.json`;
+  `%APPDATA%\lantext\host.json` on Windows). Corrupt files regenerate;
+  unwritable paths fall back to an in-memory identity and must never block
+  hosting. Discovery replies stay additive (`hostId`, `name`, `clients`,
+  `version`, `port`) and must remain legacy-tolerant: a missing `hostId` is an
+  anonymous room. `--name "<room>"` sets and persists the room name.
 - Every launch path (`bin` shim relaunch and the npm scripts) passes
   `--disable-warning=ExperimentalWarning`: node's FFI warning writes to
   stderr mid-frame and corrupts TUI paint. Keep the flag on new launch
@@ -266,9 +278,9 @@ relevant child `AGENTS.md`.
 
 ## Child DOX Index
 
-- `src/protocol/` - Wire contracts: constants, envelope, codec, version, network. Single source of truth for ports/discovery/envelope.
+- `src/protocol/` - Wire contracts: constants, envelope, codec, discovery reply parser/encoder, version, network. Single source of truth for ports/discovery/envelope.
 - `src/display/` - Plain-text display atoms for non-TTY paths. The root document owns this scope.
-- `src/client/` + `src/server/` - Focused transport submodules (discovery, connection/broadcast). Facades `src/client.ts`/`src/hotspot.ts` own lifecycle.
+- `src/client/` + `src/server/` - Focused transport submodules (discovery, connection/broadcast, persisted host identity). Facades `src/client.ts`/`src/hotspot.ts` own lifecycle.
 - `src/adapters/` - ChatSession adapters over transports. The root document owns this scope.
 - `src/modes/` - Mode presenters (TUI vs plain for host/client). The root document owns this scope.
 - `src/ui/` - OpenTUI React terminal UI: session adapter boundary, renderer

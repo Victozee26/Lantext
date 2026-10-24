@@ -6,8 +6,8 @@ import { mountChatScreen } from '../ui/chat-screen.js';
 import { getLocalIP } from '../protocol/network.js';
 import { getVersion } from '../protocol/version.js';
 
-export async function startHostTUI(): Promise<void> {
-  const server = new LanServer();
+export async function startHostTUI(name?: string): Promise<void> {
+  const server = new LanServer({ name });
   const adapter = createServerAdapter(server);
   const ctx = {
     ownSender: 'HOST',

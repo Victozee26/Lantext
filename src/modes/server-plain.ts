@@ -9,13 +9,17 @@ import { LanServer } from '../hotspot.js';
 import { setupInput } from '../input.js';
 import type { MessageEnvelope } from '../protocol/envelope.js';
 
-export function startHostPlain(): void {
+export function startHostPlain(name?: string): void {
   showBanner('host');
-  const server = new LanServer();
+  const server = new LanServer({ name });
   let inputStarted = false;
 
   server.on('ready', (port: number) => {
     statusSuccess('HOST', `Host listening on port ${theme.info(String(port))}`);
+    status(
+      'HOST',
+      `Room ${theme.info(`"${server.identity.name}"`)} · id ${theme.muted(server.identity.hostId.slice(0, 8))}`,
+    );
     status('HOST', 'Waiting for clients...');
     if (!inputStarted) {
       inputStarted = true;

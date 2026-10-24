@@ -15,6 +15,7 @@ export function formatHelp(injectedVersion?: string): void {
     `    lantext                        Interactive mode (choose host or client)`,
     `    lantext host  (-h, --host)      Run as host`,
     `    lantext client (-c, --client)   Run as client`,
+    `    lantext host --name "<room>"    Run as host with a room name`,
     `    lantext help (--help)          Show this help message`,
     '',
     `  MODES`,

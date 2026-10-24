@@ -26,9 +26,31 @@ import { startHost } from './server-mode.js';
 import { openModeSelect } from './ui/select-screen.js';
 
 const args = process.argv.slice(2);
-const mode = args[0];
 
-async function run(requested: string | undefined): Promise<void> {
+interface ParsedArgs {
+  mode: string | undefined;
+  name: string | undefined;
+  error: string | null;
+}
+
+/** Extract `--name "<room>"` anywhere in argv, then treat the first remaining
+ *  positional argument as the mode. Keeps the documented aliases intact. */
+function parseArgs(argv: string[]): ParsedArgs {
+  const rest = [...argv];
+  const index = rest.indexOf('--name');
+  if (index === -1) return { mode: rest[0], name: undefined, error: null };
+
+  const name = rest[index + 1];
+  if (!name || name.startsWith('-')) {
+    return { mode: rest[0], name: undefined, error: '--name requires a room name' };
+  }
+  rest.splice(index, 2);
+  return { mode: rest[0], name, error: null };
+}
+
+const parsed = parseArgs(args);
+
+async function run(requested: string | undefined, name: string | undefined): Promise<void> {
   switch (requested) {
     case 'client':
     case '-c':
@@ -38,7 +60,7 @@ async function run(requested: string | undefined): Promise<void> {
     case 'host':
     case '-h':
     case '--host':
-      await startHost();
+      await startHost(name);
       break;
     case 'help':
     case '--help':
@@ -48,7 +70,7 @@ async function run(requested: string | undefined): Promise<void> {
       if (process.stdin.isTTY) {
         const selected = await openModeSelect();
         if (selected === 'quit') process.exit(0);
-        await (selected === 'client' ? startClient() : startHost());
+        await (selected === 'client' ? startClient() : startHost(name));
       } else {
         formatHelp();
         process.exit(0);
@@ -61,7 +83,13 @@ async function run(requested: string | undefined): Promise<void> {
   }
 }
 
-run(mode).catch((err) => {
+if (parsed.error) {
+  console.error(theme.error(`[LANText] ${parsed.error}\n`));
+  formatHelp();
+  process.exit(1);
+}
+
+run(parsed.mode, parsed.name).catch((err) => {
   console.error(`[LANText] Fatal: ${err instanceof Error ? err.stack : String(err)}`);
   process.exit(1);
 });
