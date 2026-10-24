@@ -27,8 +27,8 @@ export interface AppProps {
   adapter: ChatSession;
   /** Runtime teardown, forwarded to the keyboard-shutdown component. */
   shutdown: () => void;
-  /** Header badge mode. Optional: Phase 4 passes it; when absent the mode is
-   *  derived from session state (serverPort events -> server). */
+  /** Header badge mode. Optional: orchestrators pass it; when absent the mode
+   *  is derived from session state (serverPort events -> server). */
   mode?: LanTextMode;
   /** Sender identity for local echo and row accent; injected by orchestrator (SRP: UI is pure). */
   ownSender: string;

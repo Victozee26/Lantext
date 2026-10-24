@@ -1,7 +1,7 @@
 // buffered-session.ts - Transport-agnostic ChatSession event surface with
 // early-event buffering.
 //
-// Why buffering exists (Phase 4 contract): events emitted before the first
+// Why buffering exists (adapter boundary contract): events emitted before the first
 // subscriber attaches are otherwise LOST. The chat orchestrators start the
 // transport only after the runtime/UI is up, but the React mount effect
 // (useChatSession) subscribes AFTER the render commit — a tiny window where

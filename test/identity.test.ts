@@ -51,6 +51,24 @@ test('an explicit name is persisted without changing the identity', (t) => {
   assert.equal(reloaded.name, 'Victor room');
 });
 
+test('room names are trimmed to a single line', (t) => {
+  const dir = tempDir(t);
+  const configPath = join(dir, 'host.json');
+
+  const result = resolveHostIdentity({
+    configPath,
+    name: '  Victor\n\tRoom  ',
+    hostname: () => 'first-host',
+    randomUUID: () => 'id-one',
+  });
+
+  assert.equal(result.name, 'Victor Room');
+  assert.deepEqual(JSON.parse(readFileSync(configPath, 'utf8')), {
+    hostId: 'id-one',
+    name: 'Victor Room',
+  });
+});
+
 test('corrupt JSON regenerates and overwrites the file', (t) => {
   const dir = tempDir(t);
   const configPath = join(dir, 'host.json');

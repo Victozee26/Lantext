@@ -9,7 +9,7 @@
 // Dot color precedence: error > server listening (accent) / client
 // connected (success) / otherwise warning while unestablished.
 //
-// OpenTUI 0.5.6 layout facts verified in the Phase 3 app harness (via yoga
+// OpenTUI 0.5.6 layout facts verified in an app harness (via yoga
 // computed heights and renderable tree dumps):
 // - A nested flex ROW whose height comes from measuring its <text>
 //   children can collapse to 0 in a column layout; explicit height={1}

@@ -1,10 +1,9 @@
 // header.tsx - Top banner: LANText wordmark, version, local IP, and a
 // mode chip with a status dot.
 //
-// The version comes from the shared getVersion() helper (src/utils.ts): read
-// at RUNTIME from package.json (a direct JSON import is impossible because
-// tsconfig rootDir is `src` and package.json lives at the repository root).
-// Cached after first read; any failure degrades to '?'.
+// Version and local IP are injected as props by the mode orchestrators
+// (`src/modes/*`), which read them from `src/protocol/*`. This keeps the UI
+// free of runtime filesystem/network imports.
 //
 // Layout: a rounded-border banner box (explicit height={3}: top border +
 // one content row + bottom border). The inner flex ROW carries explicit

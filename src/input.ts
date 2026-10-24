@@ -1,7 +1,7 @@
 // input.js - Piped (non-TTY) input handling.
 //
-// Phase 4: the TTY branch (readline multi-line input with the paste
-// heuristic) was removed. TTY stdin now routes into the OpenTUI chat screen
+// The old TTY branch (readline multi-line input with the paste heuristic)
+// was removed. TTY stdin now routes into the OpenTUI chat screen
 // (src/ui/chat-screen.tsx), where the composer owns keyboard input, so this
 // module serves ONLY the piped/non-TTY path.
 

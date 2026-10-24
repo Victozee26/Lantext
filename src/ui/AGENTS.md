@@ -186,8 +186,8 @@
 ## Work Guidance
 
 - Check API shapes against the installed declarations
-  (`node_modules/@opentui/core/dist/*.d.ts`,
-  `node_modules/@opentui/react/dist/*.d.ts`) before use; do not guess prop
+  (`node_modules/@opentui/core/**/*.d.ts`,
+  `node_modules/@opentui/react/src/**/*.d.ts`) before use; do not guess prop
   names or lifecycle details.
 - Isolation harness pattern for component work: temporary entry under
   `src/ui/`, run through `script -qec "node --experimental-ffi dist/<path>"
@@ -212,6 +212,14 @@
 - Interactive smoke: `script -qec "node --experimental-ffi dist/main.js"
   /tmp/opencode/select.log` then feed `q` -> exit 0; alt-screen restore
   sequences present in the transcript.
+- Host-name prompt smoke: run `dist/main.js host` through `script`, feed a
+  name + Enter after the prompt paints, and assert the status line shows
+  `hosting "<name>"` and the isolated `host.json` contains that name. Feed
+  Escape instead and assert no `hosting`/port line appears.
+- Room picker smoke: temporary entry that renders `RoomPicker` with two fake
+  rooms and then a `roomLost` state; assert room names, `ip:port`, online
+  counts, `hostId` prefixes, version warning, retry/choose hints, and
+  alt-screen restore. Delete the harness and its `dist` artifacts after.
 - End-to-end (verified 14/14): background hotspot + client with
   `SERVER=127.0.0.1`, message exchange both directions, own-echo rendered
   locally on both sides, Ctrl+C (`\x03` via pty) teardown -> exit 0 +

@@ -1,6 +1,6 @@
 # Plan: Rooms (host identity + selection)
 
-Status: proposed — not implemented
+Status: implemented — v3.1.0
 Owner: root `AGENTS.md`
 Target: v3.1.0
 

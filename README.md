@@ -15,11 +15,15 @@ Sending a quick message from your phone to your laptop or to a colleague’s dev
 
 ## Features
 
-- **OpenTUI terminal UI**: interactive mode-select screen and chat screen with
-  a header (brand, IP, mode, version), scrollable message feed, status bar,
-  and multi-line composer. Piped/non-TTY use gets plain-text output with no
-  ANSI color codes.
-- **Auto-discovery**: Automatically finds the chat server on the network
+- **OpenTUI terminal UI**: interactive mode-select screen, host room-name
+  prompt, and chat screen with a header (brand, IP, mode, version), scrollable
+  message feed, status bar, and multi-line composer. Piped/non-TTY use gets
+  plain-text output with no ANSI color codes.
+- **Rooms with stable identity**: each host is a room with a persisted
+  `hostId` and an editable name. Clients see every room, choose one when
+  several answer, and reconnect only to the same room.
+- **Auto-discovery**: Finds every room on the network, not just the first one
+  to reply.
 - **Multiple clients**: Support for multiple simultaneous connections
 - **Host mode**: One device acts as host and other devices connect as clients
 - **Real-time messaging**: Instant message delivery across the network
@@ -106,6 +110,38 @@ npm start -- -c
 npm start -- -h
 ```
 
+### Rooms and Room Names
+
+A host process is one room. Its identity (`hostId` + name) is persisted at
+`$XDG_CONFIG_HOME/lantext/host.json` (fallback
+`~/.config/lantext/host.json`; `%APPDATA%\lantext\host.json` on Windows), so
+restarting the host keeps the same room.
+
+Set the name from the CLI:
+
+```bash
+lantext host --name "Living Room"
+```
+
+Without `--name`, a TTY host prompts for the room name before opening any
+socket. The persisted name is pre-filled, Enter keeps it, and Escape cancels
+without starting a server. The chosen name appears in the host status bar.
+
+When exactly one room answers discovery, the client joins it. When several
+rooms answer, a TTY client shows a picker with the room name, `ip:port`,
+online count, and a short `hostId` prefix (duplicate names are legal; the id
+disambiguates). Enter joins the selected room; `q`/Escape quits. A host from a
+different major version is marked with a warning, never blocked. Non-TTY
+clients print every alternative and use a deterministic pick (most online
+clients, then lexicographic `hostId`) instead of "first reply wins".
+
+Reconnect is sticky: the client rediscovers and joins only the remembered
+`hostId`, even if the host moved to a new DHCP address. It never silently
+switches rooms. After three scans without that room, the status line shows
+`Room "<name>" is gone`; the composer is disabled and `r` retries / `c`
+opens discovery again. `SERVER=<ip>` is an explicit address, so it bypasses
+discovery and room stickiness.
+
 ### Multi-line Messages
 
 In the chat screen, **Enter** sends the message and **Shift+Enter** (or
@@ -133,7 +169,7 @@ SERVER=192.168.1.5 lantext client
 Both roles can run on one machine over the loopback interface:
 
 ```bash
-# Terminal 1 - host
+# Terminal 1 - host (Enter accepts the persisted/default room name)
 npm run host
 
 # Terminal 2 - client
@@ -157,15 +193,19 @@ The TypeScript source is compiled from `src/` to `dist/` before the CLI runs.
 - **Bin shim** (`src/bin.ts`): self-relaunching shim behind the global `lantext` command; re-execs Node with `--experimental-ffi`, forwarding args, signals, and exit codes.
 - **Client mode** (`src/client-mode.ts`): Coordinates client networking, input, and terminal updates.
 - **Host mode** (`src/server-mode.ts`): Coordinates host networking, input, and terminal updates.
-- **Client transport** (`src/client.ts`): Discovers hosts, manages TCP connections, parses incoming messages, and reconnects.
-- **Host transport** (`src/hotspot.ts`): Runs the TCP host, answers UDP discovery, and broadcasts messages.
+- **Client transport** (`src/client.ts`): Collects every room in a discovery window, selects one, manages TCP connections, parses incoming messages, and reconnects stickily to the remembered `hostId`.
+- **Client discovery/selection** (`src/client/discovery.ts`, `src/client/selection.ts`): Dedupes replies by `hostId`, enforces the 700 ms collection window / 1.5 s hard cap, and applies the deterministic ranking.
+- **Host transport** (`src/hotspot.ts`): Runs the TCP host, advertises the persisted room identity in every UDP reply, and broadcasts messages.
+- **Host identity** (`src/server/identity.ts`): Persists `hostId` and room name, recovers from corrupt files, and falls back to an in-memory identity when the config path is unwritable.
 - **Input** (`src/input.ts`): Handles piped (non-TTY) input. TTY input is owned by the OpenTUI composer.
-- **UI** (`src/ui/`): OpenTUI application (mode-select screen, chat screen, components, runtime, session adapter).
-- **Display** (`src/display/`): Plain-text, ANSI-free non-TTY helpers (banner, help text, piped output lines, status lines, spinner, debug logging).
-- **Protocol** (`src/protocol/`): Ports, discovery messages, envelopes, wire codec, network helpers, and the shared runtime version helper.
+- **UI** (`src/ui/`): OpenTUI application (mode-select screen, host room-name prompt, room picker, chat screen, components, runtime, session adapter).
+- **Display** (`src/display/`): Plain-text, ANSI-free non-TTY helpers (banner, help text, room list, piped output lines, status lines, spinner, debug logging).
+- **Protocol** (`src/protocol/`): Ports, discovery request/reply encoding, envelopes, wire codec, network helpers, and the shared runtime version helper.
 
-Messages use newline-delimited JSON envelopes with `sender`, `timestamp`, and
-`text` fields.
+Discovery replies carry `hostId`, `name`, `clients`, `version`, and `port`;
+the request string and ports are unchanged from 3.0. A missing `hostId` means
+a legacy anonymous room. Messages use newline-delimited JSON envelopes with
+`sender`, `timestamp`, and `text` fields.
 
 ## Development
 
@@ -196,8 +236,9 @@ boundaries in `src/AGENTS.md` are enforced by `scripts/check-boundaries.mjs`,
 which fails if it scans zero files.
 
 Network changes should still be verified with a client and host on real
-devices — the unit suite covers codecs, discovery framing, broadcast, network
-interface selection, buffering, and reconnect policy, not real radios.
+devices — the unit suite covers codecs, discovery framing, room selection,
+identity persistence, broadcast, network interface selection, buffering, and
+reconnect policy, not real radios.
 
 ## Configuration
 
@@ -210,6 +251,15 @@ Environment variables:
   the advertised address (e.g. `wlan0`). Useful on multi-homed machines
   (VPN, docker, ethernet + WiFi) where the default heuristic picks the wrong
   subnet.
+
+Room configuration:
+
+- `--name "<room>"` - Set and persist the host's room name. Without it, a TTY
+  host prompts; the persisted name is the default.
+- Host identity file - `$XDG_CONFIG_HOME/lantext/host.json` (fallback
+  `~/.config/lantext/host.json`; `%APPDATA%\lantext\host.json` on Windows).
+  Deleting it creates a new room identity, so clients that remembered the old
+  `hostId` treat it as a different room.
 
 ## Security
 

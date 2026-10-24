@@ -47,8 +47,11 @@ type ReadResult =
 
 function normalizeNonEmpty(value: unknown): string | null {
   if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  // Room names are rendered in a one-line status bar and a select row.
+  // Collapse arbitrary whitespace (including CLI-supplied newlines/tabs) so a
+  // name cannot break TUI layout or plain output.
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  return normalized.length > 0 ? normalized : null;
 }
 
 /**

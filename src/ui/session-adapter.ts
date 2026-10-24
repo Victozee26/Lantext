@@ -1,25 +1,23 @@
 // session-adapter.ts - The event surface the LanText UI needs from a chat
-// session. Client and server orchestrators produce adapters (Phase 4); the
-// UI never imports transport types (`src/client.ts`, `src/hotspot.ts`).
+// session. Client and server orchestrators produce adapters
+// (`src/adapters/*`); the UI never imports transport types (`src/client.ts`,
+// `src/hotspot.ts`).
 //
 // Event payload shapes below are derived from the ACTUAL emit calls in the
 // transports today, not from intent. See the per-event notes.
 //
-// Known gaps vs the transport reality (flagged honestly):
-// - `LanClient` NEVER emits `'error'` today (also visible in client-mode.ts's
-//   dead `client.on('error', ...)` listener). Phase 4 must either map
-//   observable failures (surfaced today via `status`/`debug`) onto `error`,
-//   or document the gap.
+// Transport reality:
+// - `LanClient` never emits `'error'`; the client adapter promotes its
+//   `Connection error: ...` debug line to `error`.
 // - `error` payloads are preformatted STRINGS everywhere they exist
 //   (LanServer emits `"Server error: ..."` / `"Client error (id): ..."`).
-//   The old client-mode listener typed them as `Error` — that was dead code.
 // - `clientConnected`/`clientDisconnected` are emitted with two positional
 //   args by LanServer; this interface normalizes them to a single object.
 // - `send()`: LanClient.send returns boolean, LanServer.send returns
 //   MessageEnvelope. The adapter normalizes to a boolean success indicator.
 // - No transport emits every event: LanClient covers status/debug/discovered/
-//   connected/message; LanServer covers debug/message/error/ready/
-//   clientConnected/clientDisconnected.
+//   connected/rooms/roomSelected/roomLost/message; LanServer covers
+//   debug/message/error/ready/clientConnected/clientDisconnected.
 
 import type { MessageEnvelope } from '../protocol/envelope.js';
 
@@ -75,9 +73,9 @@ export interface ChatSessionEventMap {
   /** TCP connection to the server established. Payload: server IP string.
    *  Emitted by LanClient only. */
   connected: (address: string) => void;
-  /** Multiple rooms answered discovery and a choice is required. Payload:
-   *  every deduped room. Emitted by LanClient only; the client waits for
-   *  `selectRoom()` in interactive mode. */
+  /** Multiple rooms answered discovery. Payload: every deduped room.
+   *  Emitted by LanClient only. Interactive clients wait for `selectRoom()`;
+   *  non-interactive clients immediately connect to the deterministic pick. */
   rooms: (rooms: RoomInfo[]) => void;
   /** The room this client is attached to (auto-selected or human choice).
    *  Payload: `RoomInfo`. Emitted by LanClient only. */
@@ -91,10 +89,9 @@ export interface ChatSessionEventMap {
    *  `createEnvelope(remoteAddress, text)`; the same envelope is broadcast
    *  to other clients. */
   message: (envelope: MessageEnvelope) => void;
-  /** Fatal or recoverable failure. Payload: preformatted STRING.
-   *  Emitted by LanServer only today (`Server error: ...`, `Client error
-   *  (id): ...` for non-ECONNRESET socket errors). GAP: LanClient never
-   *  emits `error` — Phase 4 reconciles. */
+  /** Fatal or recoverable failure. Payload: preformatted STRING. LanServer
+   *  emits `Server error: ...` / `Client error (id): ...`; the client adapter
+   *  promotes `Connection error: ...` debug lines. */
   error: (message: string) => void;
   /** Server is listening. Payload: TCP port number (41236). Emitted by
    *  LanServer only. */
@@ -111,7 +108,7 @@ export type ChatSessionEventName = keyof ChatSessionEventMap;
 
 /**
  * Minimal typed EventEmitter-style contract for the UI. Implemented by
- * transport adapters (Phase 4) and by in-memory fakes in tests.
+ * `src/adapters/*` and by in-memory fakes in tests.
  * Deliberately NOT Node's EventEmitter class: keeps `src/ui/` decoupled,
  * typed per event, and trivially fakeable.
  */
