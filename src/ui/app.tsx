@@ -36,13 +36,24 @@ export interface AppProps {
   localIp: string;
   /** Version string for header; injected. */
   version: string;
+  /** Host-only room name for the status bar; injected by server-tui. */
+  roomName?: string | null;
   /** Fatal-error sink. The renderer's own uncaughtException handler swallows
    *  throws and keeps rendering, so transport throws are routed to the
    *  runtime's failFast explicitly instead of being hidden. */
   failFast?: (message: string) => void;
 }
 
-export function App({ adapter, shutdown, mode, ownSender, localIp, version, failFast }: AppProps) {
+export function App({
+  adapter,
+  shutdown,
+  mode,
+  ownSender,
+  localIp,
+  version,
+  roomName = null,
+  failFast,
+}: AppProps) {
   const session = useChatSession(adapter);
   const chatMode: LanTextMode = mode ?? (session.serverPort !== null ? 'host' : 'client');
   const pickingRoom =
@@ -117,6 +128,7 @@ export function App({ adapter, shutdown, mode, ownSender, localIp, version, fail
         lastError={session.lastError}
         selectedRoom={session.selectedRoom}
         roomLost={session.roomLost}
+        hostRoomName={roomName}
       />
     </box>
   );

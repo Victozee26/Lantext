@@ -105,7 +105,10 @@ Before modifying anything:
   unwritable paths fall back to an in-memory identity and must never block
   hosting. Discovery replies stay additive (`hostId`, `name`, `clients`,
   `version`, `port`) and must remain legacy-tolerant: a missing `hostId` is an
-  anonymous room. `--name "<room>"` sets and persists the room name.
+  anonymous room. `--name "<room>"` sets and persists the room name. Without
+  `--name`, a TTY host prompts before starting, defaulting to the persisted
+  name; cancelling starts no server. The chosen name is shown in the host
+  status bar.
 - Client discovery is a collection, not a race. Keep the 700 ms window from
   the first valid reply, the 1500 ms hard cap, dedupe by `hostId` (or source
   address for legacy hosts), and the deterministic tie-break (most clients,
@@ -299,9 +302,9 @@ relevant child `AGENTS.md`.
 - `src/adapters/` - ChatSession adapters over transports. The root document owns this scope.
 - `src/modes/` - Mode presenters (TUI vs plain for host/client). The root document owns this scope.
 - `src/ui/` - OpenTUI React terminal UI: session adapter boundary, room
-  picker, renderer runtime and shutdown ownership, chat screen, and
-  mode-select screen. Owns TTY presentation; non-TTY display stays in
-  `src/display/` under the root contract.
+  picker, host room-name prompt, renderer runtime and shutdown ownership,
+  chat screen, and mode-select screen. Owns TTY presentation; non-TTY display
+  stays in `src/display/` under the root contract.
 - `src/` (outside above) - CLI dispatch, bin shim, input, and orchestration routers. The root document owns this scope.
 - `asset/` - Project assets. The root document owns this scope until a narrower
   durable boundary requires a child contract.

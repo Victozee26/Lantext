@@ -3,8 +3,9 @@
 ## Purpose
 
 - React-over-OpenTUI terminal UI for every TTY session of LanText: the
-  interactive mode-select hero screen and the chat screen (header banner,
-  divider-separated message feed, composer card, status bar).
+  interactive mode-select hero screen, the host room-name prompt, and the chat
+  screen (header banner, divider-separated message feed, composer card, status
+  bar).
 - Non-TTY sessions never enter this scope; they stay on the plain-text
   helpers in `src/display/` owned by the root contract.
 
@@ -20,11 +21,19 @@
 - `runtime.ts` - renderer lifecycle (`bootRuntime`, `failFast`); delegates
   `ShutdownKeys` to `runtime/shutdown-keys.tsx`.
 - `runtime/shutdown-keys.tsx` - keyboard Ctrl+C path (raw-mode key event).
-- `select-screen.tsx` - mode-select screen with a NON-exiting close for the
-  select-to-chat handoff.
+- `ephemeral-screen.ts` - shared NON-exiting renderer lifecycle for transient
+  screens: create renderer, bind SIGINT/SIGTERM to a caller-supplied result,
+  destroy on settle, never `process.exit`. Reused by mode-select and the host
+  room-name prompt so their handoffs leave no orphaned handlers.
+- `select-screen.tsx` - mode-select screen on `openEphemeralScreen`; resolves
+  the chosen mode or `quit`.
+- `host-name-screen.tsx` - host room-name prompt on `openEphemeralScreen`;
+  resolves the chosen name or `null`. Persistence stays in `server-tui` /
+  `src/server/identity.ts`; this scope imports no filesystem code.
 - `chat-screen.tsx` - shared chat boot wiring (`bootRuntime` + `<App>`); receives
-  `ChatScreenContext` (`ownSender`, `localIp`, `version`) from orchestrators via
-  `src/adapters/` + `src/modes/` — UI never imports `node:os`/`fs`.
+  `ChatScreenContext` (`ownSender`, `localIp`, `version`, host-only `roomName`)
+  from orchestrators via `src/adapters/` + `src/modes/` — UI never imports
+  `node:os`/`fs`.
 - `hooks/use-chat-session.ts` - composition root over `hooks/use-messages.ts` +
   `hooks/use-connection.ts`; preserves `MAX_MESSAGE_ROWS` (500) and
   `appendOwn()`, and re-exports the room state/actions.
@@ -41,8 +50,12 @@
   + `ownSender` injection. When a client has N>1 rooms with no selection, the
   app renders `RoomPicker` instead of the chat layout. In `roomLost` it keeps
   the chat visible, disables the composer, and binds `r` (retry) / `c`
-  (choose another).
+  (choose another). Host `roomName` flows into the status bar.
 - `components/header.tsx` - banner; now prop-injected `localIp`/`version` (no `getLocalIP` import).
+- `components/host-name-prompt.tsx` - single-line room-name input. The
+  persisted name is pre-filled and selected (Enter keeps it, typing replaces
+  it); empty input falls back to the default; Escape cancels. `q` is a normal
+  character here, not a quit key.
 - `components/room-picker.tsx` - `<select>` room list. Each row shows name,
   `ip:port`, online count, short `hostId` prefix (or `legacy`), and an advisory
   major-version warning. Explicit width/height (SelectRenderable has no
@@ -74,11 +87,18 @@
   `roomLost` after three scans. The picker always shows IP:port and a short
   `hostId` prefix (or `legacy`) because room names are not unique. A
   major-version mismatch is a warning, never a block.
+- Transient-screen contract: mode-select and host-name screens share
+  `openEphemeralScreen`. They destroy their renderer and resolve a result
+  without exiting so the orchestrator can boot the chat runtime in the same
+  process. Only the chat runtime (`bootRuntime`) owns `process.exit`. Host
+  naming runs before `LanServer` starts; cancelling creates no server and
+  starts no socket.
 - Own-sender identity + local echo: transports do NOT loop local sends back
   into `message` (the server excludes the originating socket from broadcast
   and never re-emits its own sends). `ChatScreenContext` (`ownSender`,
-  `localIp`, `version`) is built by `src/modes/*` from `src/protocol/*` and
-  injected into `App`/`Header`; `App` echoes successful sends via
+  `localIp`, `version`, host-only `roomName`) is built by `src/modes/*` from
+  `src/protocol/*` and injected into `App`/`Header`/`StatusBar`; `App` echoes
+  successful sends via
   `useChatSession.appendOwn`. Echo rows are display-only; they never touch
   the wire and are capped by the same `MAX_MESSAGE_ROWS`.
 - Shutdown ownership rule: the renderer is created with

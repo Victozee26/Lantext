@@ -20,6 +20,8 @@ export interface ChatScreenContext {
   ownSender: string;
   localIp: string;
   version: string;
+  /** Host-only: the room name shown in the status bar. */
+  roomName?: string;
 }
 
 export async function mountChatScreen(
@@ -35,6 +37,7 @@ export async function mountChatScreen(
       ownSender={ctx.ownSender}
       localIp={ctx.localIp}
       version={ctx.version}
+      roomName={ctx.roomName ?? null}
       failFast={(message) => api.failFast(message)}
     />
   ));

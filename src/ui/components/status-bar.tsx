@@ -40,6 +40,8 @@ export interface StatusBarProps {
   selectedRoom: RoomInfo | null;
   /** Reconnect gave up; takes precedence over the connected/joining text. */
   roomLost: RoomLostInfo | null;
+  /** Host-only room name, so naming is visible after startup. */
+  hostRoomName: string | null;
 }
 
 export function StatusBar({
@@ -51,6 +53,7 @@ export function StatusBar({
   lastError,
   selectedRoom,
   roomLost,
+  hostRoomName,
 }: StatusBarProps) {
   const debugOn = Boolean(process.env.DEBUG);
   const hasError = lastError !== null || roomLost !== null;
@@ -58,7 +61,9 @@ export function StatusBar({
   const roomName = selectedRoom?.name ?? null;
   const connection = isServer
     ? serverPort !== null
-      ? `listening on :${serverPort}`
+      ? hostRoomName !== null
+        ? `hosting "${hostRoomName}" on :${serverPort}`
+        : `listening on :${serverPort}`
       : 'starting…'
     : roomLost !== null
       ? `room "${roomLost.name}" is gone`
