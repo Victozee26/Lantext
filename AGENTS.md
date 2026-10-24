@@ -116,6 +116,11 @@ Before modifying anything:
   retrying. `SERVER=` is an explicit address, not a room, and bypasses this
   check. Legacy anonymous rooms have no identity, so they fall back to
   deterministic discovery.
+- Client room UX: a TTY with more than one room waits for the picker; plain
+  mode prints the alternatives and uses the deterministic pick. `roomLost`
+  disables the composer and binds `r`/`c` to retry/choose another. The picker
+  must always disambiguate with IP:port and a short `hostId` prefix, and a
+  major-version mismatch is a warning only.
 - Every launch path (`bin` shim relaunch and the npm scripts) passes
   `--disable-warning=ExperimentalWarning`: node's FFI warning writes to
   stderr mid-frame and corrupts TUI paint. Keep the flag on new launch
@@ -293,10 +298,10 @@ relevant child `AGENTS.md`.
 - `src/client/` + `src/server/` - Focused transport submodules (discovery, room selection, connection/broadcast, persisted host identity). Facades `src/client.ts`/`src/hotspot.ts` own lifecycle.
 - `src/adapters/` - ChatSession adapters over transports. The root document owns this scope.
 - `src/modes/` - Mode presenters (TUI vs plain for host/client). The root document owns this scope.
-- `src/ui/` - OpenTUI React terminal UI: session adapter boundary, renderer
-  runtime and shutdown ownership, chat screen, and mode-select screen. Owns
-  TTY presentation; non-TTY display stays in `src/display/` under the root
-  contract.
+- `src/ui/` - OpenTUI React terminal UI: session adapter boundary, room
+  picker, renderer runtime and shutdown ownership, chat screen, and
+  mode-select screen. Owns TTY presentation; non-TTY display stays in
+  `src/display/` under the root contract.
 - `src/` (outside above) - CLI dispatch, bin shim, input, and orchestration routers. The root document owns this scope.
 - `asset/` - Project assets. The root document owns this scope until a narrower
   durable boundary requires a child contract.

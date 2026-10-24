@@ -33,7 +33,7 @@ interface ClientCountEvent {
 
 /** One discovered room, as shown by the picker and status bar. Structurally
  *  matches the transport's `DiscoveryReply` without importing transport code. */
-interface RoomInfo {
+export interface RoomInfo {
   /** Stable room identity; null for legacy 3.0 hosts. */
   hostId: string | null;
   /** Human room name; null for legacy hosts. */

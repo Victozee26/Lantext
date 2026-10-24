@@ -12,7 +12,9 @@
 
 - `session-adapter.ts` - `ChatSession` event surface + typed payload docs.
   The only channel between transports and this UI; imports no transport
-  module.
+  module. Room events: `rooms` (N>1 discovery result), `roomSelected`, and
+  `roomLost`; optional client actions `selectRoom`, `retryRoom`,
+  `chooseAnotherRoom` are absent on the server adapter.
 - `buffered-session.ts` - per-event queue flushed on first subscribe so no
   transport event is lost between transport start and React mount.
 - `runtime.ts` - renderer lifecycle (`bootRuntime`, `failFast`); delegates
@@ -25,17 +27,29 @@
   `src/adapters/` + `src/modes/` — UI never imports `node:os`/`fs`.
 - `hooks/use-chat-session.ts` - composition root over `hooks/use-messages.ts` +
   `hooks/use-connection.ts`; preserves `MAX_MESSAGE_ROWS` (500) and
-  `appendOwn()`.
+  `appendOwn()`, and re-exports the room state/actions.
 - `hooks/use-messages.ts` - message-only state (500 cap).
-- `hooks/use-connection.ts` - status/connected/ready/clientCount/error state.
-  (The `discovered` event still reaches adapters; it is not UI state until the
-  rooms feature lands — see `plans/rooms.md`.)
+- `hooks/use-connection.ts` - status/connected/ready/clientCount/error state
+  plus `rooms`/`selectedRoom`/`roomLost` and the optimistic client actions.
+  A fresh `rooms` payload clears the old selection so "choose another" can
+  reopen the picker; `roomLost` is cleared before a retry and re-emitted by
+  the transport if it fails again.
 - `theme.ts` - palette tokens as plain hex values plus surface tokens
   (`border`, `selfBg`, `otherBg`) and `mixHex()` interpolation used for the
   mode-select gradient wordmark. No color libraries in this scope.
-- `app.tsx` - layout composition; `Header`/`MessageFeed`/`Composer`/`StatusBar` + `ownSender` injection.
+- `app.tsx` - layout composition; `Header`/`MessageFeed`/`Composer`/`StatusBar`
+  + `ownSender` injection. When a client has N>1 rooms with no selection, the
+  app renders `RoomPicker` instead of the chat layout. In `roomLost` it keeps
+  the chat visible, disables the composer, and binds `r` (retry) / `c`
+  (choose another).
 - `components/header.tsx` - banner; now prop-injected `localIp`/`version` (no `getLocalIP` import).
-- `components/composer.tsx` + `components/composer/{normalize,bindings,use-debounce}.ts` - composer frame + paste/debounce submodules.
+- `components/room-picker.tsx` - `<select>` room list. Each row shows name,
+  `ip:port`, online count, short `hostId` prefix (or `legacy`), and an advisory
+  major-version warning. Explicit width/height (SelectRenderable has no
+  intrinsic measure); clamped to terminal dimensions.
+- `components/composer.tsx` + `components/composer/{normalize,bindings,use-debounce}.ts` - composer frame + paste/debounce submodules. `disabled`
+  keeps the card visible for `roomLost` but blurs the editor and rejects
+  paste/submit.
 - `components/message-feed.tsx` + `components/message-feed/{message-row,divider,time,multiline}.ts` - feed composition + row/copy submodules.
 - `components/*` (others) - presentation only; no sockets, timers, or
   protocol logic.
@@ -46,10 +60,20 @@
   (`src/adapters/client-adapter.ts`, `src/adapters/server-adapter.ts` via
   `src/modes/*`). Payload shapes documented in
   `session-adapter.ts` reflect ACTUAL transport emit calls: `error` payloads
-  are preformatted strings, not `Error`. `LanClient` has no terminal failure
-  state and never emits `error`; the client adapter promotes its observable
-  `Connection error: ...` debug line instead. Do not invent new semantics
-  without updating both sides.
+  are preformatted strings, not `Error`. Room payloads are `RoomInfo`
+  (`hostId`, `name`, `clients`, `version`, `port`, `address`) and
+  `RoomLostInfo` (`hostId`, `name`, `address`); they structurally match the
+  transport's `DiscoveryReply` without importing it. `LanClient` has no
+  terminal failure state and never emits `error`; the client adapter promotes
+  its observable `Connection error: ...` debug line instead. Do not invent
+  new semantics without updating both sides.
+- Room selection contract: initial discovery auto-connects only for exactly
+  one room, or in non-TTY mode via the deterministic pick. A TTY client with
+  N>1 rooms renders `RoomPicker` and waits for `selectRoom()`. Reconnect never
+  opens the picker: it either finds the remembered `hostId` or emits
+  `roomLost` after three scans. The picker always shows IP:port and a short
+  `hostId` prefix (or `legacy`) because room names are not unique. A
+  major-version mismatch is a warning, never a block.
 - Own-sender identity + local echo: transports do NOT loop local sends back
   into `message` (the server excludes the originating socket from broadcast
   and never re-emits its own sends). `ChatScreenContext` (`ownSender`,

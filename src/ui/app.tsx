@@ -10,13 +10,17 @@
 // which equals getLocalIP() locally. Transports never loop local sends back
 // into 'message', so App echoes successful sends via session.appendOwn.
 
+import { useKeyboard } from '@opentui/react';
+import type { KeyEvent } from '@opentui/core';
 import { useChatSession } from './hooks/use-chat-session.js';
 import { ShutdownKeys } from './runtime.js';
 import type { ChatSession } from './session-adapter.js';
 import { Composer } from './components/composer.js';
 import { Header, type LanTextMode } from './components/header.js';
 import { MessageFeed } from './components/message-feed.js';
+import { RoomPicker } from './components/room-picker.js';
 import { StatusBar } from './components/status-bar.js';
+import { THEME } from './theme.js';
 import type { MessageEnvelope } from '../protocol/envelope.js';
 
 export interface AppProps {
@@ -41,8 +45,34 @@ export interface AppProps {
 export function App({ adapter, shutdown, mode, ownSender, localIp, version, failFast }: AppProps) {
   const session = useChatSession(adapter);
   const chatMode: LanTextMode = mode ?? (session.serverPort !== null ? 'host' : 'client');
+  const pickingRoom =
+    chatMode === 'client'
+    && session.rooms.length > 1
+    && session.selectedRoom === null
+    && session.roomLost === null;
+
+  useKeyboard((key: KeyEvent) => {
+    if (session.roomLost === null) return;
+    if (key.name === 'r' && !key.ctrl && !key.meta && !key.shift) session.retryRoom();
+    if (key.name === 'c' && !key.ctrl && !key.meta && !key.shift) session.chooseAnotherRoom();
+  });
+
+  if (pickingRoom) {
+    return (
+      <box flexDirection="column" flexGrow={1}>
+        <ShutdownKeys onShutdown={shutdown} />
+        <RoomPicker
+          rooms={session.rooms}
+          localVersion={version}
+          onSelect={(key) => { session.selectRoom(key); }}
+          onQuit={shutdown}
+        />
+      </box>
+    );
+  }
 
   const handleSend = (text: string): boolean => {
+    if (session.roomLost !== null) return false;
     try {
       const accepted = adapter.send(text);
       if (accepted) {
@@ -67,7 +97,17 @@ export function App({ adapter, shutdown, mode, ownSender, localIp, version, fail
       <ShutdownKeys onShutdown={shutdown} />
       <Header mode={chatMode} localIp={localIp} version={version} />
       <MessageFeed messages={session.messages} ownSender={ownSender} />
-      <Composer onSubmit={handleSend} />
+      {session.roomLost !== null ? (
+        <box flexDirection="row" height={1} paddingLeft={2} paddingRight={2}>
+          <text style={{ fg: THEME.error }}>Room "{session.roomLost.name}" is gone. </text>
+          <text style={{ fg: THEME.muted }}>[</text>
+          <text style={{ fg: THEME.brand }}>r</text>
+          <text style={{ fg: THEME.muted }}>]etry  [</text>
+          <text style={{ fg: THEME.brand }}>c</text>
+          <text style={{ fg: THEME.muted }}>]hoose another</text>
+        </box>
+      ) : null}
+      <Composer onSubmit={handleSend} disabled={session.roomLost !== null} />
       <StatusBar
         status={session.status}
         connectedAddress={session.connectedAddress}
@@ -75,6 +115,8 @@ export function App({ adapter, shutdown, mode, ownSender, localIp, version, fail
         clientCount={session.clientCount}
         isServer={chatMode === 'host'}
         lastError={session.lastError}
+        selectedRoom={session.selectedRoom}
+        roomLost={session.roomLost}
       />
     </box>
   );

@@ -14,17 +14,24 @@ import { useDebouncedSubmit } from './composer/use-debounce.js';
 export interface ComposerProps {
   onSubmit: (text: string) => boolean;
   placeholder?: string;
+  /** Room-lost state: keep the card visible but stop input/submission. */
+  disabled?: boolean;
 }
 
-export function Composer({ onSubmit, placeholder }: ComposerProps) {
+export function Composer({ onSubmit, placeholder, disabled = false }: ComposerProps) {
   const editorRef = useRef<TextareaRenderable>(null);
   const [notConnected, setNotConnected] = useState(false);
   const { height: termHeight } = useTerminalDimensions();
   const computedMaxHeight = Math.max(3, Math.floor((termHeight || 24) * 0.33));
 
-  const debounced = useDebouncedSubmit(editorRef, onSubmit, setNotConnected);
+  const debounced = useDebouncedSubmit(
+    editorRef,
+    disabled ? () => false : onSubmit,
+    setNotConnected,
+  );
 
   usePaste((event) => {
+    if (disabled) return;
     try {
       const raw = decodePasteBytes(event.bytes);
       const normalized = normalizeLineEndings(stripAnsiSequences(raw));
@@ -38,6 +45,7 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
   });
 
   const handleSubmit = (): void => {
+    if (disabled) return;
     const editor = editorRef.current;
     if (!editor) return;
     const text = normalizeForSend(editor.plainText);
@@ -49,6 +57,7 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
   };
 
   const handleKeyDown = (key: KeyEvent): void => {
+    if (disabled) return;
     const isPlainEnter =
       (key.name === 'return' || key.name === 'kpenter') && !key.shift && !key.meta && !key.ctrl;
     if (!isPlainEnter) setNotConnected(false);
@@ -56,7 +65,7 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
 
   return (
     <box flexDirection="column" flexShrink={0} paddingLeft={1} paddingRight={1}>
-      {notConnected ? (
+      {notConnected && !disabled ? (
         <box flexDirection="row" height={1}>
           <text style={{ fg: THEME.warning }}>
             not connected — message kept, press Enter to retry
@@ -66,7 +75,7 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
       <box
         borderStyle="rounded"
         border
-        borderColor={notConnected ? THEME.warning : THEME.border}
+        borderColor={disabled || notConnected ? THEME.warning : THEME.border}
         minHeight={3}
         flexShrink={0}
         paddingLeft={1}
@@ -77,11 +86,15 @@ export function Composer({ onSubmit, placeholder }: ComposerProps) {
           keyBindings={COMPOSER_KEY_BINDINGS}
           onSubmit={handleSubmit}
           onKeyDown={handleKeyDown}
-          focused
+          focused={!disabled}
           minHeight={1}
           maxHeight={computedMaxHeight}
           flexShrink={0}
-          placeholder={placeholder ?? 'Message (Enter to send · Shift+Enter / Ctrl+J newline)'}
+          placeholder={
+            disabled
+              ? 'Room lost — press r to retry or c to choose another'
+              : (placeholder ?? 'Message (Enter to send · Shift+Enter / Ctrl+J newline)')
+          }
           placeholderColor={THEME.muted}
         />
       </box>

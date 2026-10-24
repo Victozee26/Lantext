@@ -26,6 +26,7 @@
 // never through direct writes into the TUI frame.
 
 import { THEME } from '../theme.js';
+import type { RoomInfo, RoomLostInfo } from '../session-adapter.js';
 
 export interface StatusBarProps {
   status: string | null;
@@ -35,6 +36,10 @@ export interface StatusBarProps {
   /** Server mode renders the listening state and online client count. */
   isServer: boolean;
   lastError: string | null;
+  /** Chosen room, used for the `connected to "<name>" (<ip>)` line. */
+  selectedRoom: RoomInfo | null;
+  /** Reconnect gave up; takes precedence over the connected/joining text. */
+  roomLost: RoomLostInfo | null;
 }
 
 export function StatusBar({
@@ -44,23 +49,35 @@ export function StatusBar({
   clientCount,
   isServer,
   lastError,
+  selectedRoom,
+  roomLost,
 }: StatusBarProps) {
   const debugOn = Boolean(process.env.DEBUG);
-  const established = isServer ? serverPort !== null : connectedAddress !== null;
+  const hasError = lastError !== null || roomLost !== null;
+  const established = isServer ? serverPort !== null : connectedAddress !== null && roomLost === null;
+  const roomName = selectedRoom?.name ?? null;
   const connection = isServer
     ? serverPort !== null
       ? `listening on :${serverPort}`
       : 'starting…'
-    : connectedAddress !== null
-      ? `connected to ${connectedAddress}`
-      : (status ?? 'searching…');
+    : roomLost !== null
+      ? `room "${roomLost.name}" is gone`
+      : connectedAddress !== null
+        ? roomName !== null
+          ? `connected to "${roomName}" (${connectedAddress})`
+          : `connected to ${connectedAddress}`
+        : selectedRoom !== null
+          ? roomName !== null
+            ? `joining "${roomName}"`
+            : `joining ${selectedRoom.address}`
+          : (status ?? 'searching…');
 
-  const dotColor = lastError !== null
+  const dotColor = hasError
     ? THEME.error
     : established
       ? (isServer ? THEME.accent : THEME.success)
       : THEME.warning;
-  const textColor = lastError !== null
+  const textColor = hasError
     ? THEME.error
     : established
       ? (isServer ? THEME.accent : THEME.info)
