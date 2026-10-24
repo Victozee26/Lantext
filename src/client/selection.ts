@@ -19,7 +19,9 @@ function compareStrings(a: string, b: string): number {
 
 /** Rank rooms best-first without mutating the input. */
 export function rankRooms(rooms: readonly DiscoveryReply[]): DiscoveryReply[] {
-  return rooms.toSorted((a, b) => {
+  // ES2022 target has no Array#toSorted; copy first so the input is untouched.
+  // oxlint-disable-next-line unicorn/no-array-sort
+  return [...rooms].sort((a, b) => {
     if (a.clients !== b.clients) return b.clients - a.clients;
     return compareStrings(roomSortKey(a), roomSortKey(b));
   });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LanClient } from '../src/client.js';
+import { LanClient, type RoomLostState } from '../src/client.js';
 import type { DiscoveryCallbacks, startDiscovery } from '../src/client/discovery.js';
 import type { ConnectionCallbacks, createManagedConnection } from '../src/client/connection.js';
 import type { DiscoveryReply } from '../src/protocol/discovery.js';
@@ -142,4 +142,147 @@ test('stop cancels a pending discovery retry', (t) => {
   t.mock.timers.tick(5000);
 
   assert.equal(scans.length, 1);
+});
+
+test('reconnect sticks to the same hostId and follows a new address', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { scans, connections, starter, factory } = harness();
+  const client = new LanClient({
+    startDiscovery: starter,
+    createConnection: factory,
+    retryDelay: 10,
+  });
+
+  client.start();
+  scans[0].callbacks.onRooms([room('host-a', '10.0.0.1', 1)]);
+  connections[0].callbacks.onDisconnect('server closed');
+  t.mock.timers.tick(10);
+
+  assert.equal(scans.length, 2);
+  scans[1].callbacks.onRooms([
+    room('host-b', '10.0.0.2', 9),
+    room('host-a', '10.0.0.9', 2, 5001),
+  ]);
+
+  assert.equal(connections.length, 2);
+  assert.equal(connections[1].address, '10.0.0.9');
+  assert.equal(connections[1].port, 5001);
+  assert.equal(client.selectedRoom?.hostId, 'host-a');
+
+  client.stop();
+});
+
+test('a different host is never substituted; three misses emit roomLost', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { scans, connections, starter, factory } = harness();
+  const client = new LanClient({
+    startDiscovery: starter,
+    createConnection: factory,
+    retryDelay: 10,
+  });
+  const lost: RoomLostState[] = [];
+  client.on('roomLost', (state: RoomLostState) => lost.push(state));
+
+  client.start();
+  scans[0].callbacks.onRooms([room('host-a', '10.0.0.1', 1)]);
+  connections[0].callbacks.onDisconnect('server closed');
+  t.mock.timers.tick(10);
+
+  for (let miss = 0; miss < 3; miss++) {
+    assert.equal(scans.length, 2 + miss);
+    scans[1 + miss].callbacks.onRooms([room('host-b', `10.0.0.${miss + 2}`, 9)]);
+    if (miss < 2) t.mock.timers.tick(1000);
+  }
+
+  assert.equal(connections.length, 1);
+  assert.equal(lost.length, 1);
+  assert.deepEqual(lost[0], { hostId: 'host-a', name: 'host-a', address: '10.0.0.1' });
+
+  t.mock.timers.tick(5000);
+  assert.equal(scans.length, 4);
+
+  client.stop();
+});
+
+test('SERVER= reconnects to the same address without discovery', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { scans, connections, starter, factory } = harness();
+  const client = new LanClient({
+    serverAddress: '10.0.0.5',
+    startDiscovery: starter,
+    createConnection: factory,
+    retryDelay: 10,
+  });
+
+  client.start();
+  connections[0].callbacks.onDisconnect('server closed');
+  t.mock.timers.tick(10);
+
+  assert.equal(scans.length, 0);
+  assert.equal(connections.length, 2);
+  assert.equal(connections[1].address, '10.0.0.5');
+
+  client.stop();
+});
+
+test('retryRoom re-scans for the remembered host after roomLost', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { scans, connections, starter, factory } = harness();
+  const client = new LanClient({
+    startDiscovery: starter,
+    createConnection: factory,
+    retryDelay: 10,
+  });
+
+  client.start();
+  scans[0].callbacks.onRooms([room('host-a', '10.0.0.1', 1)]);
+  connections[0].callbacks.onDisconnect('server closed');
+  t.mock.timers.tick(10);
+  scans[1].callbacks.onRooms([]);
+  t.mock.timers.tick(1000);
+  scans[2].callbacks.onRooms([]);
+  t.mock.timers.tick(1000);
+  scans[3].callbacks.onRooms([]);
+  assert.notEqual(client.roomLost, null);
+
+  client.retryRoom();
+  assert.equal(client.roomLost, null);
+  assert.equal(scans.length, 5);
+
+  scans[4].callbacks.onRooms([room('host-a', '10.0.0.9', 1)]);
+  assert.equal(connections.length, 2);
+  assert.equal(connections[1].address, '10.0.0.9');
+
+  client.stop();
+});
+
+test('chooseAnotherRoom clears the old identity and connects to the pick', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { scans, connections, starter, factory } = harness();
+  const client = new LanClient({
+    startDiscovery: starter,
+    createConnection: factory,
+    retryDelay: 10,
+  });
+
+  client.start();
+  scans[0].callbacks.onRooms([room('host-a', '10.0.0.1', 1)]);
+  connections[0].callbacks.onDisconnect('server closed');
+  t.mock.timers.tick(10);
+  scans[1].callbacks.onRooms([]);
+  t.mock.timers.tick(1000);
+  scans[2].callbacks.onRooms([]);
+  t.mock.timers.tick(1000);
+  scans[3].callbacks.onRooms([]);
+
+  client.chooseAnotherRoom();
+  assert.equal(client.roomLost, null);
+  assert.equal(scans.length, 5);
+
+  scans[4].callbacks.onRooms([room('host-b', '10.0.0.2', 3)]);
+  assert.equal(connections.length, 2);
+  assert.equal(connections[1].address, '10.0.0.2');
+  assert.equal(client.selectedRoom?.hostId, 'host-b');
+
+  client.stop();
 });

@@ -110,6 +110,12 @@ Before modifying anything:
   the first valid reply, the 1500 ms hard cap, dedupe by `hostId` (or source
   address for legacy hosts), and the deterministic tie-break (most clients,
   then lexicographic `hostId`/address). Never restore "first packet wins".
+- Reconnect is sticky by `hostId`. A restart or DHCP move reconnects to the
+  same room; a different host is never an automatic substitute. Three
+  consecutive scans without the remembered `hostId` enter `roomLost` and stop
+  retrying. `SERVER=` is an explicit address, not a room, and bypasses this
+  check. Legacy anonymous rooms have no identity, so they fall back to
+  deterministic discovery.
 - Every launch path (`bin` shim relaunch and the npm scripts) passes
   `--disable-warning=ExperimentalWarning`: node's FFI warning writes to
   stderr mid-frame and corrupts TUI paint. Keep the flag on new launch

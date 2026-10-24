@@ -15,6 +15,13 @@ import {
 import { createReconnectPolicy } from './client/reconnect.js';
 
 const DISCOVERY_RETRY_MS = 1000;
+const ROOM_LOST_AFTER_SCANS = 3;
+
+export interface RoomLostState {
+  hostId: string;
+  name: string;
+  address: string;
+}
 
 export interface LanClientOptions {
   serverAddress?: string;
@@ -35,6 +42,10 @@ export class LanClient extends EventEmitter {
   serverPort: number;
   /** Last discovery result. Empty until a scan completes. */
   rooms: DiscoveryReply[];
+  /** Room this client is attached to (null for SERVER= or before selection). */
+  selectedRoom: DiscoveryReply | null;
+  /** Set after three reconnect scans cannot find the selected hostId. */
+  roomLost: RoomLostState | null;
   discoveryWindowMs: number;
   discoveryScanMs: number;
   retryDelay: number;
@@ -49,6 +60,8 @@ export class LanClient extends EventEmitter {
   #startDiscovery: typeof defaultStartDiscovery;
   #createConnection: typeof defaultCreateConnection;
   #discoveryRetryMs: number;
+  #reconnectTarget: string | null = null;
+  #reconnectMisses = 0;
 
   constructor(options: LanClientOptions = {}) {
     super();
@@ -56,6 +69,8 @@ export class LanClient extends EventEmitter {
     this.serverAddress = this.fixedAddress;
     this.serverPort = PORTS.TCP;
     this.rooms = [];
+    this.selectedRoom = null;
+    this.roomLost = null;
     this.discoveryWindowMs = options.discoveryWindowMs ?? 700;
     this.discoveryScanMs = options.discoveryScanMs ?? 1500;
     this.retryDelay = options.retryDelay ?? 2000;
@@ -70,7 +85,7 @@ export class LanClient extends EventEmitter {
   }
 
   discover(): void {
-    if (this.isStopped) return;
+    if (this.isStopped || this.roomLost) return;
     if (this.#discoveryCleanup) return;
 
     if (this.discoveryTimer) {
@@ -89,6 +104,11 @@ export class LanClient extends EventEmitter {
           if (this.isStopped) return;
 
           this.rooms = rooms;
+          if (this.#reconnectTarget) {
+            this.#handleReconnectRooms(rooms);
+            return;
+          }
+
           const chosen = pickRoom(rooms);
           if (!chosen) {
             this.emit('debug', 'No rooms answered discovery');
@@ -97,10 +117,7 @@ export class LanClient extends EventEmitter {
           }
 
           this.isSearching = false;
-          this.serverAddress = chosen.address;
-          this.serverPort = chosen.port;
-          this.emit('discovered', chosen.address);
-          this.connect(chosen.address);
+          this.#connectToRoom(chosen);
         },
         onDebug: (msg) => this.emit('debug', msg),
       },
@@ -109,6 +126,93 @@ export class LanClient extends EventEmitter {
         scanTimeoutMs: this.discoveryScanMs,
       },
     );
+  }
+
+  /** Sticky reconnect: only the remembered hostId may satisfy the scan. A
+   *  different host answering is never an automatic substitute. */
+  #handleReconnectRooms(rooms: DiscoveryReply[]): void {
+    const target = this.#reconnectTarget;
+    if (!target) return;
+
+    const match = rooms.find((room) => room.hostId === target);
+    if (match) {
+      this.#reconnectMisses = 0;
+      this.isSearching = false;
+      this.#connectToRoom(match);
+      return;
+    }
+
+    this.#reconnectMisses += 1;
+    const name = this.selectedRoom?.name ?? this.selectedRoom?.address ?? target.slice(0, 8);
+    if (this.#reconnectMisses >= ROOM_LOST_AFTER_SCANS) {
+      const lost: RoomLostState = {
+        hostId: target,
+        name,
+        address: this.selectedRoom?.address ?? '',
+      };
+      this.isSearching = false;
+      this.roomLost = lost;
+      this.emit('roomLost', lost);
+      return;
+    }
+
+    this.emit(
+      'status',
+      `Room "${name}" not found (${this.#reconnectMisses}/${ROOM_LOST_AFTER_SCANS}). Retrying...`,
+    );
+    this.#scheduleDiscoveryRetry();
+  }
+
+  #connectToRoom(room: DiscoveryReply): void {
+    this.selectedRoom = room;
+    this.roomLost = null;
+    this.#reconnectTarget = room.hostId;
+    this.#reconnectMisses = 0;
+    this.serverAddress = room.address;
+    this.serverPort = room.port;
+    this.emit('discovered', room.address);
+    this.connect(room.address);
+  }
+
+  /** Pick a room from the last discovery result. Key is hostId, or the
+   *  address for legacy hosts. Used by the interactive picker. */
+  selectRoom(key: string): boolean {
+    const room = this.rooms.find((candidate) => (candidate.hostId ?? candidate.address) === key);
+    if (!room) return false;
+    if (this.#discoveryCleanup) { this.#discoveryCleanup(); this.#discoveryCleanup = null; }
+    if (this.discoveryTimer) { clearTimeout(this.discoveryTimer); this.discoveryTimer = null; }
+    this.isStopped = false;
+    this.#reconnect.cancel();
+    this.#connectToRoom(room);
+    return true;
+  }
+
+  /** Retry the remembered room after a roomLost state. */
+  retryRoom(): void {
+    if (!this.roomLost) return;
+    this.roomLost = null;
+    this.#reconnectMisses = 0;
+    this.#reconnectTarget = this.selectedRoom?.hostId ?? null;
+    this.serverAddress = null;
+    this.isStopped = false;
+    this.#reconnect.cancel();
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    this.discover();
+  }
+
+  /** Leave the lost room and discover again. Interactive mode will show the
+   *  picker; non-TTY mode uses the deterministic pick. */
+  chooseAnotherRoom(): void {
+    this.roomLost = null;
+    this.selectedRoom = null;
+    this.#reconnectTarget = null;
+    this.#reconnectMisses = 0;
+    this.serverAddress = null;
+    this.serverPort = PORTS.TCP;
+    this.isStopped = false;
+    this.#reconnect.cancel();
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    this.discover();
   }
 
   #scheduleDiscoveryRetry(): void {
@@ -144,9 +248,19 @@ export class LanClient extends EventEmitter {
       this.#managed = null;
     }
     if (this.isStopped) return;
-    this.emit('status', `Disconnected (${reason}). Reconnecting...`);
+    const stickyId = this.fixedAddress ? null : this.selectedRoom?.hostId ?? null;
+    const roomLabel = this.selectedRoom?.name ?? this.selectedRoom?.address;
+    this.emit(
+      'status',
+      stickyId
+        ? `Disconnected (${reason}). Reconnecting to "${roomLabel}"...`
+        : `Disconnected (${reason}). Reconnecting...`,
+    );
     this.isSearching = false;
-    if (!this.fixedAddress) this.serverAddress = null;
+    if (!this.fixedAddress) {
+      this.serverAddress = null;
+      this.#reconnectTarget = stickyId;
+    }
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
     this.#reconnect.schedule(() => this.start());
@@ -157,6 +271,7 @@ export class LanClient extends EventEmitter {
   }
 
   start(): void {
+    if (this.roomLost) return;
     this.isStopped = false;
     this.#reconnect.cancel();
     if (this.serverAddress) {
