@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 yarn.lock
 
 # Environment variables
@@ -18,6 +17,7 @@ yarn.lock
 
 # Build artifacts
 dist/
+dist-test/
 build/
 
 # Development

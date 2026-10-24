@@ -19,7 +19,8 @@
 // - help: plain text, printed BEFORE any renderer starts.
 // - No \x1Bc clear-screen hack: the renderer manages the alt screen.
 
-import { formatHelp, theme } from './ui.js';
+import { formatHelp } from './display/help.js';
+import { theme } from './display/theme.js';
 import { startClient } from './client-mode.js';
 import { startHost } from './server-mode.js';
 import { openModeSelect } from './ui/select-screen.js';
@@ -27,8 +28,8 @@ import { openModeSelect } from './ui/select-screen.js';
 const args = process.argv.slice(2);
 const mode = args[0];
 
-async function run(mode: string | undefined): Promise<void> {
-  switch (mode) {
+async function run(requested: string | undefined): Promise<void> {
+  switch (requested) {
     case 'client':
     case '-c':
     case '--client':
@@ -54,7 +55,7 @@ async function run(mode: string | undefined): Promise<void> {
       }
       break;
     default:
-      console.log(theme.error(`Unknown mode: ${mode}\n`));
+      console.log(theme.error(`Unknown mode: ${requested}\n`));
       formatHelp();
       process.exit(1);
   }

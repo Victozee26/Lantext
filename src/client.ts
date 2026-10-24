@@ -1,10 +1,8 @@
 // client.ts - Client for WiFi devices (facade over modular transport layers).
 // Delegates discovery, connection, and reconnect scheduling to focused submodules.
 
-import type { Socket } from 'node:net';
 import { EventEmitter } from 'node:events';
 import { PORTS } from './protocol/constants.js';
-import { encodePayload } from './protocol/codec.js';
 import { startDiscovery } from './client/discovery.js';
 import { createManagedConnection, type ManagedConnection } from './client/connection.js';
 import { createReconnectPolicy } from './client/reconnect.js';
@@ -20,13 +18,12 @@ export class LanClient extends EventEmitter {
   fixedAddress: string | null;
   serverAddress: string | null;
   serverPort: number;
-  connection: Socket | null;
   discoveryTimeout: number;
   retryDelay: number;
   isStopped: boolean;
   isSearching: boolean;
-  _discoveryTimer: ReturnType<typeof setTimeout> | null;
-  _reconnectTimer: ReturnType<typeof setTimeout> | null;
+  discoveryTimer: ReturnType<typeof setTimeout> | null;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
 
   #managed: ManagedConnection | null = null;
   #discoveryCleanup: (() => void) | null = null;
@@ -37,13 +34,12 @@ export class LanClient extends EventEmitter {
     this.fixedAddress = options.serverAddress || null;
     this.serverAddress = this.fixedAddress;
     this.serverPort = PORTS.TCP;
-    this.connection = null;
     this.discoveryTimeout = options.discoveryTimeout ?? 5000;
     this.retryDelay = options.retryDelay ?? 2000;
     this.isStopped = false;
     this.isSearching = false;
-    this._discoveryTimer = null;
-    this._reconnectTimer = null;
+    this.discoveryTimer = null;
+    this.reconnectTimer = null;
     this.#reconnect = createReconnectPolicy(this.retryDelay);
   }
 
@@ -61,7 +57,7 @@ export class LanClient extends EventEmitter {
           if (found) return;
           found = true;
           this.isSearching = false;
-          if (this._discoveryTimer) { clearTimeout(this._discoveryTimer); this._discoveryTimer = null; }
+          if (this.discoveryTimer) { clearTimeout(this.discoveryTimer); this.discoveryTimer = null; }
           this.serverAddress = address;
           this.emit('discovered', address);
           this.connect();
@@ -75,7 +71,7 @@ export class LanClient extends EventEmitter {
     // Retry if not found within timeout + grace
     const retryTimeout = setTimeout(() => {
       if (!found && !this.isStopped) {
-        this._discoveryTimer = setTimeout(() => this.discover(), 1000);
+        this.discoveryTimer = setTimeout(() => this.discover(), 1000);
       }
     }, this.discoveryTimeout + 50);
     // store to allow stop() to clear it
@@ -87,7 +83,7 @@ export class LanClient extends EventEmitter {
   }
 
   connect(address: string | null = this.serverAddress): void {
-    if (this.connection || this.isStopped) return;
+    if (this.#managed || this.isStopped) return;
     if (!address) return;
     this.serverAddress = address;
 
@@ -102,31 +98,24 @@ export class LanClient extends EventEmitter {
       },
     );
     this.#managed = managed;
-    this.connection = managed.socket;
   }
 
   #handleDisconnect(reason: string): void {
-    if (this.connection) {
-      this.connection.destroy();
-      this.connection = null;
+    if (this.#managed) {
+      this.#managed.destroy();
       this.#managed = null;
     }
     if (this.isStopped) return;
     this.emit('status', `Disconnected (${reason}). Reconnecting...`);
     this.isSearching = false;
     if (!this.fixedAddress) this.serverAddress = null;
-    if (this._reconnectTimer) clearTimeout(this._reconnectTimer);
-    this._reconnectTimer = null;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     this.#reconnect.schedule(() => this.start());
   }
 
   send(text: string): boolean {
-    if (this.#managed) return this.#managed.send(text);
-    if (this.connection && this.connection.writable) {
-      this.connection.write(encodePayload(text));
-      return true;
-    }
-    return false;
+    return this.#managed ? this.#managed.send(text) : false;
   }
 
   start(): void {
@@ -143,14 +132,9 @@ export class LanClient extends EventEmitter {
     this.isStopped = true;
     this.isSearching = false;
     if (this.#discoveryCleanup) { this.#discoveryCleanup(); this.#discoveryCleanup = null; }
-    if (this._discoveryTimer) { clearTimeout(this._discoveryTimer); this._discoveryTimer = null; }
+    if (this.discoveryTimer) { clearTimeout(this.discoveryTimer); this.discoveryTimer = null; }
     this.#reconnect.cancel();
-    if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     if (this.#managed) { this.#managed.destroy(); this.#managed = null; }
-    if (this.connection) {
-      this.connection.end();
-      this.connection.destroy();
-      this.connection = null;
-    }
   }
 }

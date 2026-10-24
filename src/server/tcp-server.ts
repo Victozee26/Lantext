@@ -45,15 +45,19 @@ export function createTcpServer(
       }
     });
 
-    socket.on('end', () => {
+    // Both 'end' and 'close' can fire (and 'close' fires alone when the
+    // socket errors and is destroyed). Deleting from the Set is the latch:
+    // it returns true exactly once, so the disconnect event cannot double-fire
+    // and an errored socket cannot stay counted as connected forever.
+    const cleanup = (): void => {
       if (buffer.trim() !== '') { flushLine(buffer); buffer = ''; }
-      clients.delete(socket);
-      events.onClientDisconnected(clientId, clients.size);
-    });
+      if (clients.delete(socket)) {
+        events.onClientDisconnected(clientId, clients.size);
+      }
+    };
 
-    socket.on('close', () => {
-      if (buffer.trim() !== '') { flushLine(buffer); buffer = ''; }
-    });
+    socket.on('end', cleanup);
+    socket.on('close', cleanup);
   });
 
   server.listen(PORTS.TCP, '0.0.0.0', () => events.onReady(PORTS.TCP));

@@ -24,7 +24,7 @@
 import type { MessageEnvelope } from '../protocol/envelope.js';
 
 /** Payload for client-count events (LanServer 'clientConnected'/'clientDisconnected'). */
-export interface ClientCountEvent {
+interface ClientCountEvent {
   /** Remote socket identity: `<ip>:<port>` as built by LanServer. */
   clientId: string;
   /** LanServer's client Set size at emit time. */
@@ -51,8 +51,8 @@ export interface ChatSessionEventMap {
   /** TCP connection to the server established. Payload: server IP string.
    *  Emitted by LanClient only. */
   connected: (address: string) => void;
-  /** A chat message arrived. Payload: `MessageEnvelope` from src/utils.ts
-   *  (`{ sender, timestamp, text }`). LanClient: parsed from the
+  /** A chat message arrived. Payload: `MessageEnvelope` from
+   *  src/protocol/envelope.ts (`{ sender, timestamp, text }`). LanClient: parsed from the
    *  newline-delimited JSON stream sent by the server. LanServer: built via
    *  `createEnvelope(remoteAddress, text)`; the same envelope is broadcast
    *  to other clients. */

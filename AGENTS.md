@@ -31,8 +31,8 @@
   - `src/client.ts` + `src/client/` and `src/hotspot.ts` + `src/server/` own transport facades and focused submodules (discovery, connection/broadcast, reconnect).
   - `src/protocol/` is single source for wire contracts (`constants`, `envelope`, `codec`, `version`, `network`).
   - `src/display/` owns plain-text display atoms (`banner`, `status`, `format`, `help`, `spinner`, `clients`, `debug`, `theme`, `box`).
-  - `src/ui.ts` is a backward-compat barrel re-exporting `src/display/*`.
-  - `src/utils.ts` is a deprecated barrel re-exporting `src/protocol/*` (remove in 2.2).
+  - `src/ui.ts` and `src/utils.ts` were removed in 3.1. Import the concrete
+    module (`src/display/*`, `src/protocol/*`) — no barrels.
   - `src/input.ts` owns piped (non-TTY) input behavior.
 
 ## Development Approach
@@ -106,9 +106,11 @@ Before modifying anything:
   `src/ui/session-adapter.ts` via `src/adapters/*`) are the only channel between transports and
   the UI, and they buffer events emitted before the first subscriber
   attaches (`src/ui/buffered-session.ts`) so no transport event is lost.
-- Enforce strict import boundaries: `src/ui/**` may not import `node:net|dgram|os` or `src/protocol/network` directly — network/version are injected as props via `src/adapters/` + `src/modes/` + `src/ui/chat-screen.tsx` context. `src/utils.ts` is banned for new code (use `src/protocol/*`/`src/display/*`). Guarded by `eslint` + `.dependency-cruiser.cjs` (`npm run lint:deps`).
-- Keep environment-variable behavior (`DEBUG` and `SERVER`) compatible with
-  the README unless the documentation is updated in the same change.
+- Enforce strict import boundaries: `src/ui/**` may not import `node:net|dgram|os|fs` or `src/protocol/network|version` directly — network/version are injected as props via `src/adapters/` + `src/modes/` + `src/ui/chat-screen.tsx` context. Guarded by `scripts/check-boundaries.mjs` (`npm run lint:deps`). The script parses import specifiers directly and fails when it scans zero files.
+- Toolchain constraint: TypeScript 7's compiler API is not published yet. `typescript-eslint` refuses to run and `dependency-cruiser` silently cruises 0 modules. Do not reintroduce them until they support TS 7; use `oxlint` + `scripts/check-boundaries.mjs` + `knip` instead. `tsc` owns type correctness, including `noUnusedLocals`/`noUnusedParameters`.
+- Keep environment-variable behavior (`DEBUG`, `SERVER`, `LAN_TEXT_IFACE`)
+  compatible with the README unless the documentation is updated in the same
+  change.
 - Update `package.json`, lockfiles, and documentation together when a change
   affects dependencies, commands, supported runtime behavior, or public usage.
 - Keep `opencode.json` valid against its declared schema. Review changes to
@@ -136,7 +138,14 @@ Every module, class, and function should:
 
 ## Verification
 
-- There is currently no automated test script in `package.json`.
+- `npm test` runs the `node:test` suite (35 tests: codec, envelope, network
+  interface selection, broadcast, discovery, buffered session, reconnect).
+  It compiles `src/` + `test/` to `dist-test/`; it does not use `dist/`.
+- `npm run typecheck` must pass. `strict` plus `noUnusedLocals`,
+  `noUnusedParameters`, `noImplicitReturns`, and `noFallthroughCasesInSwitch`
+  are enabled.
+- `npm run lint` = `oxlint src` + `npm run lint:deps` (architecture guard).
+- `npm run knip` must report no unused files, exports, or dependencies.
 - For TypeScript changes, run `npm run build` and `node --check` on emitted JavaScript files.
 - Run the relevant manual smoke check when behavior permits:
   - `npm start` for interactive mode selection

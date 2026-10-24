@@ -24,5 +24,3 @@ export async function startHostTUI(): Promise<void> {
     process.exit(1);
   }
 }
-
-export const startHotspotTUI = startHostTUI;

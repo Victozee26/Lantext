@@ -13,13 +13,16 @@
     "README.md"
   ],
   "scripts": {
+    "clean": "node -e \"const fs=require('node:fs');for(const d of ['dist','dist-test'])fs.rmSync(d,{recursive:true,force:true})\"",
     "gen:version": "node scripts/generate-version.mjs",
-    "prebuild": "npm run gen:version",
+    "prebuild": "npm run clean && npm run gen:version",
     "pretypecheck": "npm run gen:version",
     "build": "tsc",
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "npm run clean && npm run build:test && node --test dist-test/test/*.test.js",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
-    "lint:deps": "depcruise src --config .dependency-cruiser.cjs",
+    "lint": "oxlint src && npm run lint:deps",
+    "lint:deps": "node scripts/check-boundaries.mjs",
     "knip": "knip",
     "prepack": "npm run build",
     "start": "node --experimental-ffi --disable-warning=ExperimentalWarning dist/main.js",
@@ -60,6 +63,8 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "^19",
+    "knip": "^6.43.0",
+    "oxlint": "^1.89.0",
     "typescript": "^7.0.2"
   }
 }

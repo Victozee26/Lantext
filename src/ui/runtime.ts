@@ -123,6 +123,4 @@ export async function bootRuntime(
   };
 }
 
-// Re-export for backward compat — new code imports from './runtime/shutdown-keys.js'
 export { ShutdownKeys } from './runtime/shutdown-keys.js';
-export type { ShutdownKeysProps } from './runtime/shutdown-keys.js';

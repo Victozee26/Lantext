@@ -8,9 +8,10 @@
 // transport events (e.g. LanClient's SYNCHRONOUS 'status' from discover())
 // can fire with zero listeners. BufferedSession queues events PER EVENT
 // until the first subscriber attaches, then flushes queued payloads in
-// order and forwards live from then on. The latch is per event: events that
-// never get a subscriber are never buffered, and once latched, unlistened
-// events drop like a plain EventEmitter (standard semantics).
+// order and forwards live from then on. The latch is per event: each event
+// keeps its own bounded queue (MAX_BUFFERED_EVENTS, oldest dropped first),
+// and once latched, unlistened events drop like a plain EventEmitter
+// (standard semantics).
 //
 // Deliberately NOT Node's EventEmitter and free of transport imports: the
 // UI layer stays decoupled and this class is trivially testable in

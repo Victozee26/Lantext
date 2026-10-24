@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { MessageEnvelope } from '../../protocol/envelope.js';
 import type { ChatSession } from '../session-adapter.js';
 
-export const MAX_MESSAGE_ROWS = 500;
+const MAX_MESSAGE_ROWS = 500;
 
 function pushCapped<T>(prev: T[], value: T, cap: number): T[] {
   if (prev.length < cap) return [...prev, value];

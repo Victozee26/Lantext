@@ -161,8 +161,8 @@ The TypeScript source is compiled from `src/` to `dist/` before the CLI runs.
 - **Host transport** (`src/hotspot.ts`): Runs the TCP host, answers UDP discovery, and broadcasts messages.
 - **Input** (`src/input.ts`): Handles piped (non-TTY) input. TTY input is owned by the OpenTUI composer.
 - **UI** (`src/ui/`): OpenTUI application (mode-select screen, chat screen, components, runtime, session adapter).
-- **UI helpers** (`src/ui.ts`): Plain-text, ANSI-free non-TTY display helpers (help text, piped output lines, status lines, debug logging).
-- **Utilities** (`src/utils.ts`): Defines ports, discovery messages, network helpers, message envelopes, and the shared runtime version helper.
+- **Display** (`src/display/`): Plain-text, ANSI-free non-TTY helpers (banner, help text, piped output lines, status lines, spinner, debug logging).
+- **Protocol** (`src/protocol/`): Ports, discovery messages, envelopes, wire codec, network helpers, and the shared runtime version helper.
 
 Messages use newline-delimited JSON envelopes with `sender`, `timestamp`, and
 `text` fields.
@@ -178,10 +178,26 @@ npm run typecheck
 
 # Build and start with debug logging enabled
 npm run dev
+
+# Unit tests (node:test, no extra runner)
+npm test
+
+# Lint + architecture boundary check
+npm run lint
+
+# Dead-code report
+npm run knip
 ```
 
-There is currently no automated test script in `package.json`. Network changes
-should be verified with a client and host on the appropriate local devices.
+Linting note: TypeScript 7's compiler API is not published yet, so
+`typescript-eslint` and `dependency-cruiser` cannot parse this project (both
+fail or silently scan zero files). Linting uses `oxlint`, and the import
+boundaries in `src/AGENTS.md` are enforced by `scripts/check-boundaries.mjs`,
+which fails if it scans zero files.
+
+Network changes should still be verified with a client and host on real
+devices — the unit suite covers codecs, discovery framing, broadcast, network
+interface selection, buffering, and reconnect policy, not real radios.
 
 ## Configuration
 
@@ -190,6 +206,20 @@ Environment variables:
 - `DEBUG=true` - Enable debug logging
 - `SERVER=<ip>` - Specify host IP address (skips discovery); `localhost`
   and `127.0.0.1` work for same-machine testing
+- `LAN_TEXT_IFACE=<name>` - Pin the network interface used for discovery and
+  the advertised address (e.g. `wlan0`). Useful on multi-homed machines
+  (VPN, docker, ethernet + WiFi) where the default heuristic picks the wrong
+  subnet.
+
+## Security
+
+LanText is **unencrypted and unauthenticated**. Messages travel as plaintext
+newline-delimited JSON over TCP, and any device on the same network can
+discover, host, or sniff a session. Use it on networks you trust.
+
+Client isolation, VLAN segmentation, and most corporate/guest WiFi setups
+block device-to-device traffic entirely — LanText will not discover anything
+there. It is designed for home routers, hotspots, and small shared spaces.
 
 ## License
 

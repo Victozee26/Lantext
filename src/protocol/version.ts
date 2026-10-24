@@ -8,12 +8,6 @@
 
 import { VERSION } from './version.generated.js';
 
-export { VERSION };
-
 export function getVersion(): string {
   return VERSION;
 }
-
-// test seam: kept for backward compat; previously reset the fs-read cache.
-// Now a no-op because VERSION is a build-time constant.
-export function __resetVersionCache(): void {}

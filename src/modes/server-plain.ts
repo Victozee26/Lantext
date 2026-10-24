@@ -52,5 +52,3 @@ export function startHostPlain(): void {
     process.exit(0);
   });
 }
-
-export const startHotspotPlain = startHostPlain;

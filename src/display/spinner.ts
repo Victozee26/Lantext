@@ -1,11 +1,11 @@
 // spinner.ts - Minimal plain spinner for client discovery.
 
-export interface Spinner {
+interface Spinner {
   start(): void;
   succeed(text?: string): void;
 }
 
-export function createSpinner(text: string): Spinner {
+export function createSpinner(label: string): Spinner {
   const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
   const animated = Boolean(process.stderr.isTTY);
   let timer: NodeJS.Timeout | null = null;
@@ -25,13 +25,13 @@ export function createSpinner(text: string): Spinner {
       if (started) return;
       started = true;
       if (!animated) {
-        process.stderr.write(`  ${text}\n`);
+        process.stderr.write(`  ${label}\n`);
         return;
       }
-      process.stderr.write(`  ${frames[0]} ${text}`);
+      process.stderr.write(`  ${frames[0]} ${label}`);
       timer = setInterval(() => {
         index = (index + 1) % frames.length;
-        process.stderr.write(`\r  ${frames[index]} ${text}\x1b[K`);
+        process.stderr.write(`\r  ${frames[index]} ${label}\x1b[K`);
       }, 80);
     },
     succeed(text?: string): void {

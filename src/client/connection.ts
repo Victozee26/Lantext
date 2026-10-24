@@ -17,7 +17,6 @@ export interface ConnectionCallbacks {
 }
 
 export interface ManagedConnection {
-  socket: Socket;
   send: (text: string) => boolean;
   destroy: () => void;
 }
@@ -60,7 +59,6 @@ export function createManagedConnection(
   socket.on('end', () => handleDisconnect('server closed'));
 
   return {
-    socket,
     send: (text: string) => {
       if ((socket as Socket).writable) {
         socket.write(encodePayload(text));

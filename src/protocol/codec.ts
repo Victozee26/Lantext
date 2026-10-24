@@ -59,7 +59,6 @@ export function normalizeForHost(text: string): string {
   const finalText = stripped.length ? stripped : normalized;
   return finalText.trim() === '' ? '' : finalText;
 }
-export const normalizeForHotspot = normalizeForHost;
 
 // ── Envelope (server → clients, JSON per line) ──────────────────
 
@@ -94,9 +93,4 @@ export function splitBuffer(buffer: string, chunk: string): SplitResult {
   const lines = combined.split('\n');
   const rest = lines.pop() ?? '';
   return { lines, rest };
-}
-
-export interface PayloadSplitResult {
-  texts: string[];
-  rest: string;
 }

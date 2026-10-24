@@ -2,7 +2,6 @@
 // Delegates TCP, UDP discovery, and broadcast to focused submodules.
 
 import type { Server, Socket } from 'node:net';
-import type { Socket as UdpSocket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
 import { createEnvelope, type MessageEnvelope } from './protocol/envelope.js';
 import { normalizeForHost } from './protocol/codec.js';
@@ -12,10 +11,7 @@ import { createTcpServer } from './server/tcp-server.js';
 
 export class LanServer extends EventEmitter {
   clients: Set<Socket>;
-  messageHistory: Map<string, number>;
-  HISTORY_WINDOW: number;
   server: Server | null;
-  discoverySocket: UdpSocket | null;
 
   #discovery = createDiscoveryResponder();
   #hub: BroadcastHub;
@@ -23,11 +19,8 @@ export class LanServer extends EventEmitter {
   constructor() {
     super();
     this.clients = new Set();
-    this.messageHistory = new Map();
-    this.HISTORY_WINDOW = 2000;
     this.server = null;
-    this.discoverySocket = null;
-    this.#hub = new BroadcastHub(this.clients, this.messageHistory, this.HISTORY_WINDOW);
+    this.#hub = new BroadcastHub(this.clients);
   }
 
   start(): void {
@@ -40,20 +33,11 @@ export class LanServer extends EventEmitter {
       broadcast: (env, exclude) => this.#hub.broadcast(env, exclude),
     });
 
-    this.discoverySocket = this.#discovery.start((msg) => this.emit('debug', msg));
+    this.#discovery.start((msg) => this.emit('debug', msg));
   }
 
   broadcast(envelope: MessageEnvelope, excludeSocket: Socket | null = null): void {
     this.#hub.broadcast(envelope, excludeSocket);
-  }
-
-  cleanHistory(): void {
-    const now = Date.now();
-    for (const [key, timestamp] of this.messageHistory.entries()) {
-      if (now - timestamp > this.HISTORY_WINDOW) {
-        this.messageHistory.delete(key);
-      }
-    }
   }
 
   send(text: string): MessageEnvelope {
@@ -66,8 +50,8 @@ export class LanServer extends EventEmitter {
 
   stop(): void {
     for (const client of this.clients) client.end();
+    this.clients.clear();
     if (this.server) this.server.close();
     this.#discovery.stop();
-    if (this.discoverySocket) { try { this.discoverySocket.close(); } catch {} this.discoverySocket = null; }
   }
 }

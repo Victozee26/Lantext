@@ -6,7 +6,7 @@
   interactive mode-select hero screen and the chat screen (header banner,
   divider-separated message feed, composer card, status bar).
 - Non-TTY sessions never enter this scope; they stay on the plain-text
-  helpers in `src/ui.ts` owned by the root contract.
+  helpers in `src/display/` owned by the root contract.
 
 ## Ownership
 
@@ -27,7 +27,9 @@
   `hooks/use-connection.ts`; preserves `MAX_MESSAGE_ROWS` (500) and
   `appendOwn()`.
 - `hooks/use-messages.ts` - message-only state (500 cap).
-- `hooks/use-connection.ts` - status/discovered/connected/ready/clientCount/error state.
+- `hooks/use-connection.ts` - status/connected/ready/clientCount/error state.
+  (The `discovered` event still reaches adapters; it is not UI state until the
+  rooms feature lands — see `plans/rooms.md`.)
 - `theme.ts` - palette tokens as plain hex values plus surface tokens
   (`border`, `selfBg`, `otherBg`) and `mixHex()` interpolation used for the
   mode-select gradient wordmark. No color libraries in this scope.
@@ -124,7 +126,7 @@
   inside single `<text>`; `formatTime()` `HH:MM`. Chrome excluded via
   `selectable={false}` on header/divider/placeholder so
   `Selection.getSelectedText()` only returns bodies.
-- Import boundary (strict): `src/ui/**` may not import `node:net|dgram|os|fs` or `src/protocol/network|version`; network/version are injected as props via `ChatScreenContext`. `MessageEnvelope` type from `src/protocol/envelope.ts` is the only allowed protocol import. Guarded by `eslint` + `.dependency-cruiser.cjs`.
+- Import boundary (strict): `src/ui/**` may not import `node:net|dgram|os|fs` or `src/protocol/network|version`; network/version are injected as props via `ChatScreenContext`. `MessageEnvelope` type from `src/protocol/envelope.ts` is the only allowed protocol import. Guarded by `scripts/check-boundaries.mjs` via `npm run lint:deps`.
 - Message copy: each row is `onMouseDown` double-click (400 ms) →
   `createHostClipboard` + `createClipboard({ host, terminal:
   createRendererClipboardAdapter(renderer) })` → `writeText(text,
@@ -162,6 +164,7 @@
 ## Verification
 
 - `npm run typecheck && npm run build` after every change.
+- `npm test` (root suite) and `npm run lint` (oxlint + boundary guard).
 - Interactive smoke: `script -qec "node --experimental-ffi dist/main.js"
   /tmp/opencode/select.log` then feed `q` -> exit 0; alt-screen restore
   sequences present in the transcript.
