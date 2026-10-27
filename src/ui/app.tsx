@@ -129,6 +129,7 @@ export function App({
         selectedRoom={session.selectedRoom}
         roomLost={session.roomLost}
         hostRoomName={roomName}
+        localVersion={version}
       />
     </box>
   );

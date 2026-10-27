@@ -12,6 +12,7 @@ import { useKeyboard, useTerminalDimensions } from '@opentui/react';
 import type { KeyEvent, SelectOption } from '@opentui/core';
 import { THEME } from '../theme.js';
 import type { RoomInfo } from '../session-adapter.js';
+import { versionWarning } from '../version-warning.js';
 
 export interface RoomPickerProps {
   rooms: RoomInfo[];
@@ -19,12 +20,6 @@ export interface RoomPickerProps {
   localVersion: string;
   onSelect: (key: string) => void;
   onQuit: () => void;
-}
-
-function major(version: string | null): string | null {
-  if (!version) return null;
-  const [first] = version.split('.');
-  return first || null;
 }
 
 function label(room: RoomInfo): string {
@@ -37,11 +32,8 @@ function description(room: RoomInfo, localVersion: string): string {
     `${room.clients} online`,
     room.hostId ? `id ${room.hostId.slice(0, 8)}` : 'legacy',
   ];
-  const remoteMajor = major(room.version);
-  const localMajor = major(localVersion);
-  if (remoteMajor !== null && localMajor !== null && remoteMajor !== localMajor) {
-    parts.push(`⚠ v${room.version}`);
-  }
+  const warning = versionWarning(room.version, localVersion);
+  if (warning !== null) parts.push(warning);
   return parts.join(' · ');
 }
 

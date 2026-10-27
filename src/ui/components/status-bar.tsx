@@ -27,6 +27,7 @@
 
 import { THEME } from '../theme.js';
 import type { RoomInfo, RoomLostInfo } from '../session-adapter.js';
+import { versionWarning } from '../version-warning.js';
 
 export interface StatusBarProps {
   status: string | null;
@@ -42,6 +43,8 @@ export interface StatusBarProps {
   roomLost: RoomLostInfo | null;
   /** Host-only room name, so naming is visible after startup. */
   hostRoomName: string | null;
+  /** Local app version, used for the advisory major-version warning. */
+  localVersion: string;
 }
 
 export function StatusBar({
@@ -54,12 +57,19 @@ export function StatusBar({
   selectedRoom,
   roomLost,
   hostRoomName,
+  localVersion,
 }: StatusBarProps) {
   const debugOn = Boolean(process.env.DEBUG);
   const hasError = lastError !== null || roomLost !== null;
   const established = isServer ? serverPort !== null : connectedAddress !== null && roomLost === null;
   const roomName = selectedRoom?.name ?? null;
-  const connection = isServer
+  // Advisory only: legacy rooms have no version, and the server bar has no
+  // remote room to compare against.
+  const warning =
+    !isServer && roomLost === null && selectedRoom !== null
+      ? versionWarning(selectedRoom.version, localVersion)
+      : null;
+  const baseConnection = isServer
     ? serverPort !== null
       ? hostRoomName !== null
         ? `hosting "${hostRoomName}" on :${serverPort}`
@@ -76,6 +86,7 @@ export function StatusBar({
             ? `joining "${roomName}"`
             : `joining ${selectedRoom.address}`
           : (status ?? 'searching…');
+  const connection = warning !== null ? `${baseConnection} · ${warning}` : baseConnection;
 
   const dotColor = hasError
     ? THEME.error

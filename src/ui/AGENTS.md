@@ -52,6 +52,9 @@
 - `theme.ts` - palette tokens as plain hex values plus surface tokens
   (`border`, `selfBg`, `otherBg`) and `mixHex()` interpolation used for the
   mode-select gradient wordmark. No color libraries in this scope.
+- `version-warning.ts` - pure major-version comparison (`majorVersion`,
+  `hasMajorVersionMismatch`, `versionWarning`) shared by the room picker and
+  status bar. No React/OpenTUI imports; legacy `null` versions never warn.
 - `app.tsx` - layout composition; `Header`/`MessageFeed`/`Composer`/`StatusBar`
   + `ownSender` injection. When a client has N>1 rooms with no selection, the
   app renders `RoomPicker` instead of the chat layout. In `roomLost` it keeps
@@ -63,9 +66,13 @@
   it); empty input falls back to the default; Escape cancels. `q` is a normal
   character here, not a quit key.
 - `components/room-picker.tsx` - `<select>` room list. Each row shows name,
-  `ip:port`, online count, short `hostId` prefix (or `legacy`), and an advisory
-  major-version warning. Explicit width/height (SelectRenderable has no
-  intrinsic measure); clamped to terminal dimensions.
+  `ip:port`, online count, short `hostId` prefix (or `legacy`), and the shared
+  advisory major-version warning. Explicit width/height (SelectRenderable has
+  no intrinsic measure); clamped to terminal dimensions.
+- `components/status-bar.tsx` - client connection line, error slot, server
+  client count, DEBUG chip, and mode badge. For the selected room it appends
+  the same ` · ⚠ host v<version>` warning to both the `joining ...` and
+  `connected to ...` lines; legacy rooms and the server bar never warn.
 - `components/composer.tsx` + `components/composer/{normalize,bindings,use-debounce}.ts` - composer frame + paste/debounce submodules. `disabled`
   keeps the card visible for `roomLost` but blurs the editor and rejects
   paste/submit.
@@ -94,7 +101,8 @@
   opens the picker: it either finds the remembered `hostId` or emits
   `roomLost` after three scans. The picker always shows IP:port and a short
   `hostId` prefix (or `legacy`) because room names are not unique. A
-  major-version mismatch is a warning, never a block.
+  major-version mismatch is a warning, never a block; the picker and the
+  client status bar both show `⚠ host v<version>`.
 - Transient-screen contract: mode-select and host-name screens share
   `openEphemeralScreen`. They destroy their renderer and resolve a result
   without exiting so the orchestrator can boot the chat runtime in the same

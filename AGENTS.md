@@ -109,6 +109,11 @@ Before modifying anything:
   `--name`, a TTY host prompts before starting, defaulting to the persisted
   name; cancelling starts no server. The chosen name is shown in the host
   status bar.
+- Major-version comparison is advisory and shared: the room picker and the
+  client status bar (`joining ...` / `connected to ...`) warn with
+  `⚠ host v<version>` when the selected room's major differs from the local
+  version. Legacy rooms (`version === null`) and the server status bar never
+  warn.
 - Client discovery is a collection, not a race. Keep the 700 ms window from
   the first valid reply, the 1500 ms hard cap, dedupe by `hostId` (or source
   address for legacy hosts), and the deterministic tie-break (most clients,
@@ -168,10 +173,10 @@ Every module, class, and function should:
 
 ## Verification
 
-- `npm test` runs the `node:test` suite (74 tests: codec, envelope, network
+- `npm test` runs the `node:test` suite (79 tests: codec, envelope, network
   interface selection, broadcast, discovery, discovery reply parsing, discovery
   responder, room selection, host identity, buffered session, reconnect, client
-  disconnect, plain room display).
+  disconnect, plain room display, UI major-version warning).
   It compiles `src/` + `test/` to `dist-test/`; it does not use `dist/`.
 - `npm run typecheck` must pass. `strict` plus `noUnusedLocals`,
   `noUnusedParameters`, `noImplicitReturns`, and `noFallthroughCasesInSwitch`
