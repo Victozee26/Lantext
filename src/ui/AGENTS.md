@@ -13,7 +13,9 @@
 
 - `session-adapter.ts` - `ChatSession` event surface + typed payload docs.
   The only channel between transports and this UI; imports no transport
-  module. Room events: `rooms` (N>1 discovery result), `roomSelected`, and
+  module. Connection events: `connected` and payload-less `disconnected`
+  (live link dropped and a reconnect was scheduled; `stop()` does not emit
+  it). Room events: `rooms` (N>1 discovery result), `roomSelected`, and
   `roomLost`; optional client actions `selectRoom`, `retryRoom`,
   `chooseAnotherRoom` are absent on the server adapter.
 - `buffered-session.ts` - per-event queue flushed on first subscribe so no
@@ -40,9 +42,13 @@
 - `hooks/use-messages.ts` - message-only state (500 cap).
 - `hooks/use-connection.ts` - status/connected/ready/clientCount/error state
   plus `rooms`/`selectedRoom`/`roomLost` and the optimistic client actions.
-  A fresh `rooms` payload clears the old selection so "choose another" can
-  reopen the picker; `roomLost` is cleared before a retry and re-emitted by
-  the transport if it fails again.
+  `connectedAddress` represents only the live link: it is cleared on
+  `disconnected`, on `roomLost`, and before retry/choose actions, so the
+  status bar falls back to transport status or `joining ...` during discovery
+  instead of painting a stale green "connected" line. A fresh `rooms` payload
+  clears the old selection so "choose another" can reopen the picker;
+  `roomLost` is cleared before a retry and re-emitted by the transport if it
+  fails again.
 - `theme.ts` - palette tokens as plain hex values plus surface tokens
   (`border`, `selfBg`, `otherBg`) and `mixHex()` interpolation used for the
   mode-select gradient wordmark. No color libraries in this scope.
@@ -78,8 +84,10 @@
   `RoomLostInfo` (`hostId`, `name`, `address`); they structurally match the
   transport's `DiscoveryReply` without importing it. `LanClient` has no
   terminal failure state and never emits `error`; the client adapter promotes
-  its observable `Connection error: ...` debug line instead. Do not invent
-  new semantics without updating both sides.
+  its observable `Connection error: ...` debug line instead. Its
+  `disconnected` event is payload-less and fires only for a live connection
+  drop before a scheduled reconnect; `stop()` teardown is silent. Do not
+  invent new semantics without updating both sides.
 - Room selection contract: initial discovery auto-connects only for exactly
   one room, or in non-TTY mode via the deterministic pick. A TTY client with
   N>1 rooms renders `RoomPicker` and waits for `selectRoom()`. Reconnect never

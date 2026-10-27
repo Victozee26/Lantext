@@ -168,10 +168,10 @@ Every module, class, and function should:
 
 ## Verification
 
-- `npm test` runs the `node:test` suite (73 tests: codec, envelope, network
+- `npm test` runs the `node:test` suite (74 tests: codec, envelope, network
   interface selection, broadcast, discovery, discovery reply parsing, discovery
-  responder, room selection, host identity, buffered session, reconnect, plain
-  room display).
+  responder, room selection, host identity, buffered session, reconnect, client
+  disconnect, plain room display).
   It compiles `src/` + `test/` to `dist-test/`; it does not use `dist/`.
 - `npm run typecheck` must pass. `strict` plus `noUnusedLocals`,
   `noUnusedParameters`, `noImplicitReturns`, and `noFallthroughCasesInSwitch`

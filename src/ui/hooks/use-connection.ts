@@ -20,6 +20,7 @@ export function useConnection(adapter: ChatSession) {
   useEffect(() => {
     const onStatus = (message: string): void => setStatus(message);
     const onConnected = (address: string): void => setConnectedAddress(address);
+    const onDisconnected = (): void => setConnectedAddress(null);
     const onError = (message: string): void => setLastError(message);
     const onReady = (port: number): void => setServerPort(port);
     const onClientConnected = (event: { totalClients: number }): void => setClientCount(event.totalClients);
@@ -35,10 +36,14 @@ export function useConnection(adapter: ChatSession) {
       setSelectedRoom(room);
       setRoomLost(null);
     };
-    const onRoomLost = (lost: RoomLostInfo): void => setRoomLost(lost);
+    const onRoomLost = (lost: RoomLostInfo): void => {
+      setConnectedAddress(null);
+      setRoomLost(lost);
+    };
 
     adapter.on('status', onStatus);
     adapter.on('connected', onConnected);
+    adapter.on('disconnected', onDisconnected);
     adapter.on('error', onError);
     adapter.on('ready', onReady);
     adapter.on('clientConnected', onClientConnected);
@@ -50,6 +55,7 @@ export function useConnection(adapter: ChatSession) {
     return () => {
       adapter.off('status', onStatus);
       adapter.off('connected', onConnected);
+      adapter.off('disconnected', onDisconnected);
       adapter.off('error', onError);
       adapter.off('ready', onReady);
       adapter.off('clientConnected', onClientConnected);
@@ -60,8 +66,9 @@ export function useConnection(adapter: ChatSession) {
     };
   }, [adapter]);
 
-  /** Client actions clear local failure state before asking the transport;
-   *  a failed retry emits `roomLost` again with fresh data. */
+  /** Client actions clear local failure state and the stale connected
+   *  address before asking the transport; a failed retry emits `roomLost`
+   *  again with fresh data. */
   const selectRoom = (key: string): boolean => {
     const accepted = adapter.selectRoom?.(key) ?? false;
     if (!accepted) return false;
@@ -70,11 +77,13 @@ export function useConnection(adapter: ChatSession) {
   };
 
   const retryRoom = (): void => {
+    setConnectedAddress(null);
     setRoomLost(null);
     adapter.retryRoom?.();
   };
 
   const chooseAnotherRoom = (): void => {
+    setConnectedAddress(null);
     setRoomLost(null);
     setSelectedRoom(null);
     setRooms([]);

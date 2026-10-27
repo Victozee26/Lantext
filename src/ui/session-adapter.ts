@@ -16,8 +16,8 @@
 // - `send()`: LanClient.send returns boolean, LanServer.send returns
 //   MessageEnvelope. The adapter normalizes to a boolean success indicator.
 // - No transport emits every event: LanClient covers status/debug/discovered/
-//   connected/rooms/roomSelected/roomLost/message; LanServer covers
-//   debug/message/error/ready/clientConnected/clientDisconnected.
+//   connected/disconnected/rooms/roomSelected/roomLost/message; LanServer
+//   covers debug/message/error/ready/clientConnected/clientDisconnected.
 
 import type { MessageEnvelope } from '../protocol/envelope.js';
 
@@ -73,6 +73,10 @@ export interface ChatSessionEventMap {
   /** TCP connection to the server established. Payload: server IP string.
    *  Emitted by LanClient only. */
   connected: (address: string) => void;
+  /** The live TCP connection dropped (socket error or server close) and a
+   *  reconnect was scheduled. No payload. Emitted by LanClient only; `stop()`
+   *  tears down intentionally and does not emit it. */
+  disconnected: () => void;
   /** Multiple rooms answered discovery. Payload: every deduped room.
    *  Emitted by LanClient only. Interactive clients wait for `selectRoom()`;
    *  non-interactive clients immediately connect to the deterministic pick. */

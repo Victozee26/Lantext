@@ -14,6 +14,7 @@ export function createClientAdapter(client: LanClient): ChatSession {
   client.on('status', (message: string) => buffered.emit('status', message));
   client.on('discovered', (address: string) => buffered.emit('discovered', address));
   client.on('connected', (address: string) => buffered.emit('connected', address));
+  client.on('disconnected', () => buffered.emit('disconnected'));
   client.on('message', (envelope: MessageEnvelope) => buffered.emit('message', envelope));
   client.on('rooms', (rooms: DiscoveryReply[]) => buffered.emit('rooms', rooms));
   client.on('roomSelected', (room: DiscoveryReply) => buffered.emit('roomSelected', room));

@@ -275,6 +275,32 @@ test('SERVER= reconnects to the same address without discovery', (t) => {
   client.stop();
 });
 
+test('a live connection drop emits exactly one disconnected event', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { scans, connections, starter, factory } = harness();
+  const client = new LanClient({
+    startDiscovery: starter,
+    createConnection: factory,
+    retryDelay: 10,
+  });
+  const disconnected: string[] = [];
+  client.on('disconnected', () => disconnected.push('event'));
+
+  client.start();
+  scans[0].callbacks.onRooms([room('host-a', '10.0.0.1', 1)]);
+  connections[0].callbacks.onConnected('10.0.0.1');
+  connections[0].callbacks.onDisconnect('server closed');
+
+  assert.equal(disconnected.length, 1);
+
+  // A socket can report both 'error' and 'end'; the second report is stale.
+  connections[0].callbacks.onDisconnect('error');
+  assert.equal(disconnected.length, 1);
+
+  client.stop();
+  assert.equal(disconnected.length, 1);
+});
+
 test('retryRoom re-scans for the remembered host after roomLost', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { scans, connections, starter, factory } = harness();

@@ -258,11 +258,12 @@ export class LanClient extends EventEmitter {
   }
 
   #handleDisconnect(reason: string): void {
+    const wasManaged = this.#managed !== null;
     if (this.#managed) {
       this.#managed.destroy();
       this.#managed = null;
     }
-    if (this.isStopped) return;
+    if (this.isStopped || !wasManaged) return;
     const stickyId = this.fixedAddress ? null : this.selectedRoom?.hostId ?? null;
     const roomLabel = this.selectedRoom?.name ?? this.selectedRoom?.address;
     this.emit(
@@ -279,6 +280,7 @@ export class LanClient extends EventEmitter {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
     this.#reconnect.schedule(() => this.start());
+    this.emit('disconnected');
   }
 
   send(text: string): boolean {
