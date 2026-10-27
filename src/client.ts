@@ -1,7 +1,8 @@
 // client.ts - Client for WiFi devices (facade over modular transport layers).
 // Delegates discovery, connection, and reconnect scheduling to focused
-// submodules. Discovery now returns every room in the collect window; the
-// caller applies a deterministic selection policy until the picker UI lands.
+// submodules. Discovery returns every room in the collect window; an
+// interactive TTY defers N>1 choices to the UI picker, and every other path
+// applies the deterministic selection policy.
 
 import { EventEmitter } from 'node:events';
 import { PORTS } from './protocol/constants.js';

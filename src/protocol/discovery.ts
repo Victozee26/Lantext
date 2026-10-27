@@ -44,11 +44,8 @@ function validPort(value: unknown): number | null {
     : null;
 }
 
-/**
- * Parse one discovery reply datagram. Returns null for malformed JSON, a
- * non-object payload, or a non-`SERVER_FOUND` type. Unknown JSON fields are
- * ignored, so a new client can talk to a legacy host and vice versa.
- */
+/** Host-side fields for one discovery reply. `port` defaults to the protocol
+ *  TCP port; the client takes the address from the UDP datagram source. */
 export interface DiscoveryReplyInput {
   hostId: string;
   name: string;

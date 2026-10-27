@@ -115,7 +115,8 @@ Rules:
 - Host moved to a new IP (DHCP): same `hostId`, new address → reconnect.
 - Host not found after 3 scans: emit `roomLost`, disable the composer, show
   `Room "<name>" is gone. [r]etry  [c]hoose another`.
-- A different host answering is never an automatic substitute.
+- For a room with a remembered `hostId`, a different host answering is never
+  an automatic substitute.
 - Legacy anonymous rooms have no `hostId`, so they cannot be sticky: reconnect
   falls back to normal discovery, and a TTY client may show the picker again.
 

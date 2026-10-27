@@ -33,7 +33,7 @@
   - `src/server/identity.ts` owns the persisted per-install room identity
     (`hostId`, `name`) and its corrupt/unwritable recovery policy;
     `src/server/discovery.ts` advertises that identity in every UDP reply.
-  - `src/display/` owns plain-text display atoms (`banner`, `status`, `format`, `help`, `spinner`, `clients`, `debug`, `theme`, `box`).
+  - `src/display/` owns plain-text display atoms (`banner`, `status`, `format`, `help`, `spinner`, `clients`, `rooms`, `debug`, `theme`, `box`).
   - `src/ui.ts` and `src/utils.ts` were removed in 3.1. Import the concrete
     module (`src/display/*`, `src/protocol/*`) — no barrels.
   - `src/input.ts` owns piped (non-TTY) input behavior.
