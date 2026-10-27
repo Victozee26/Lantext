@@ -13,6 +13,8 @@ export interface DiscoveryResponderOptions {
   version: string;
   /** Read lazily so every reply reflects the current client set. */
   getClientCount: () => number;
+  /** UDP port to bind. Defaults to PORTS.UDP_DISCOVERY; tests use 0. */
+  port?: number;
 }
 
 export interface DiscoveryResponder {
@@ -28,9 +30,9 @@ export function createDiscoveryResponder(options: DiscoveryResponderOptions): Di
       if (socket) return;
       const s = dgram.createSocket('udp4');
       socket = s;
-      s.bind(PORTS.UDP_DISCOVERY, () => {
+      s.bind(options.port ?? PORTS.UDP_DISCOVERY, () => {
         s.setBroadcast(true);
-        onDebug(`Discovery listening on ${PORTS.UDP_DISCOVERY}`);
+        onDebug(`Discovery listening on ${s.address().port}`);
       });
       s.on('message', (msg, rinfo) => {
         if (msg.toString().trim() !== DISCOVERY_MSG) return;
@@ -41,7 +43,7 @@ export function createDiscoveryResponder(options: DiscoveryResponderOptions): Di
           version: options.version,
           port: PORTS.TCP,
         });
-        s.send(response, 0, response.length, rinfo.port, rinfo.address);
+        s.send(response, rinfo.port, rinfo.address);
       });
       s.on('error', (err) => onDebug(`Discovery socket error: ${err.message}`));
     },
