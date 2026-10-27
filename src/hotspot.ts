@@ -8,14 +8,25 @@ import { normalizeForHost } from './protocol/codec.js';
 import { getVersion } from './protocol/version.js';
 import { BroadcastHub } from './server/broadcast.js';
 import { createDiscoveryResponder } from './server/discovery.js';
-import { resolveHostIdentity, type HostIdentity, type HostIdentityOptions } from './server/identity.js';
+import { mergeIdentityWarnings, resolveHostIdentity, type HostIdentity, type HostIdentityOptions } from './server/identity.js';
 import { createTcpServer } from './server/tcp-server.js';
 
 export interface LanServerOptions {
   /** Explicit room name; persisted to the host identity file. */
   name?: string;
-  /** Pre-resolved identity (the TTY orchestrator prompts before starting). */
+  /**
+   * Pre-resolved identity (the TTY orchestrator prompts before starting).
+   * Currently unused: the constructor re-resolves so the chosen name is
+   * persisted. Use `identityWarning` to forward a warning from that earlier
+   * resolution.
+   */
   identity?: HostIdentity;
+  /**
+   * Warning from an earlier identity resolution (for example, the TTY prompt
+   * default). Merged with this constructor's own warning and emitted through
+   * the debug channel by `start()`.
+   */
+  identityWarning?: string | null;
   /** Advertised version; defaults to the build-injected package version. */
   version?: string;
   /** @internal DI seams for identity storage. */
@@ -46,7 +57,7 @@ export class LanServer extends EventEmitter {
       : resolveHostIdentity({ ...options.identityOptions, name: options.name });
 
     this.identity = { hostId: resolved.hostId, name: resolved.name };
-    this.#identityWarning = resolved.warning;
+    this.#identityWarning = mergeIdentityWarnings(options.identityWarning, resolved.warning);
     this.#hub = new BroadcastHub(this.clients);
     this.#discovery = createDiscoveryResponder({
       hostId: this.identity.hostId,

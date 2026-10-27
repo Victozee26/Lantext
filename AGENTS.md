@@ -103,7 +103,9 @@ Before modifying anything:
   `$XDG_CONFIG_HOME/lantext/host.json` (fallback `~/.config/lantext/host.json`;
   `%APPDATA%\lantext\host.json` on Windows). Corrupt files regenerate;
   unwritable paths fall back to an in-memory identity and must never block
-  hosting. Discovery replies stay additive (`hostId`, `name`, `clients`,
+  hosting. Recovery warnings reach the host debug channel even when the TTY
+  room-name prompt resolved the identity first. Discovery replies stay
+  additive (`hostId`, `name`, `clients`,
   `version`, `port`) and must remain legacy-tolerant: a missing `hostId` is an
   anonymous room. `--name "<room>"` sets and persists the room name. Without
   `--name`, a TTY host prompts before starting, defaulting to the persisted
@@ -174,10 +176,11 @@ Every module, class, and function should:
 
 ## Verification
 
-- `npm test` runs the `node:test` suite (79 tests: codec, envelope, network
+- `npm test` runs the `node:test` suite (80 tests: codec, envelope, network
   interface selection, broadcast, discovery, discovery reply parsing, discovery
-  responder, room selection, host identity, buffered session, reconnect, client
-  disconnect, plain room display, UI major-version warning).
+  responder, room selection, host identity, identity warning merge, buffered
+  session, reconnect, client disconnect, plain room display, UI major-version
+  warning).
   It compiles `src/` + `test/` to `dist-test/`; it does not use `dist/`.
 - `npm run typecheck` must pass. `strict` plus `noUnusedLocals`,
   `noUnusedParameters`, `noImplicitReturns`, and `noFallthroughCasesInSwitch`

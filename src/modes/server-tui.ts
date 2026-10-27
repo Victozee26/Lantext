@@ -19,14 +19,16 @@ export async function startHostTUI(name?: string): Promise<void> {
 
   try {
     let roomName = name;
+    let identityWarning: string | null = null;
     if (roomName === undefined) {
       const identity = resolveHostIdentity();
       const chosen = await openHostNamePrompt(identity.name);
       if (chosen === null) return;
       roomName = chosen;
+      identityWarning = identity.warning;
     }
 
-    server = new LanServer({ name: roomName });
+    server = new LanServer({ name: roomName, identityWarning });
     const adapter = createServerAdapter(server);
     const ctx = {
       ownSender: 'HOST',

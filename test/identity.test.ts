@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, win32 } from 'node:path';
 import {
   defaultHostConfigPath,
+  mergeIdentityWarnings,
   resolveHostIdentity,
 } from '../src/server/identity.js';
 
@@ -105,6 +106,15 @@ test('an unwritable path falls back to an in-memory identity without throwing', 
   assert.equal(result.name, 'session-host');
   assert.equal(result.persisted, false);
   assert.match(result.warning ?? '', /Could not persist/i);
+});
+
+test('identity warnings merge without dropping distinct diagnostics', () => {
+  assert.equal(mergeIdentityWarnings(null, undefined, '   '), null);
+  assert.equal(mergeIdentityWarnings('same warning', 'same warning'), 'same warning');
+  assert.equal(
+    mergeIdentityWarnings('identity was invalid; regenerated', 'could not persist identity'),
+    'identity was invalid; regenerated could not persist identity',
+  );
 });
 
 test('config path follows XDG, HOME, and APPDATA rules', () => {

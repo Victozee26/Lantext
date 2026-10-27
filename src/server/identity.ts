@@ -26,6 +26,23 @@ export interface HostIdentityResult extends HostIdentity {
   warning: string | null;
 }
 
+/**
+ * Combine identity diagnostics from separate resolution steps. Blank entries
+ * are dropped, identical lines are emitted once, and distinct lines are
+ * preserved so neither a pre-resolution nor a persistence warning is lost.
+ */
+export function mergeIdentityWarnings(
+  ...warnings: Array<string | null | undefined>
+): string | null {
+  const lines: string[] = [];
+  for (const warning of warnings) {
+    const line = warning?.trim();
+    if (!line || lines.includes(line)) continue;
+    lines.push(line);
+  }
+  return lines.length > 0 ? lines.join(' ') : null;
+}
+
 export interface HostIdentityOptions {
   /** Explicit config path; tests and unusual deployments can override. */
   configPath?: string;
@@ -157,6 +174,6 @@ export function resolveHostIdentity(options: HostIdentityOptions = {}): HostIden
   return {
     ...identity,
     persisted: saved.persisted,
-    warning: [recoveryWarning, saved.warning].filter((line): line is string => line !== null).join(' ') || null,
+    warning: mergeIdentityWarnings(recoveryWarning, saved.warning),
   };
 }
