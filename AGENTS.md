@@ -122,8 +122,9 @@ Before modifying anything:
   same room; a different host is never an automatic substitute. Three
   consecutive scans without the remembered `hostId` enter `roomLost` and stop
   retrying. `SERVER=` is an explicit address, not a room, and bypasses this
-  check. Legacy anonymous rooms have no identity, so they fall back to
-  deterministic discovery.
+  check. Legacy anonymous rooms have no identity, so they fall back to normal
+  discovery: a TTY client shows the picker when several rooms answer, and the
+  deterministic pick applies otherwise.
 - Client room UX: a TTY with more than one room waits for the picker; plain
   mode prints the alternatives and uses the deterministic pick. `roomLost`
   disables the composer and binds `r`/`c` to retry/choose another. The picker

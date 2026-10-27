@@ -135,11 +135,14 @@ different major version is marked with a warning, never blocked. Non-TTY
 clients print every alternative and use a deterministic pick (most online
 clients, then lexicographic `hostId`) instead of "first reply wins".
 
-Reconnect is sticky: the client rediscovers and joins only the remembered
-`hostId`, even if the host moved to a new DHCP address. It never silently
-switches rooms. After three scans without that room, the status line shows
-`Room "<name>" is gone`; the composer is disabled and `r` retries / `c`
-opens discovery again. `SERVER=<ip>` is an explicit address, so it bypasses
+Reconnect is sticky for rooms with an identity: the client rediscovers and
+joins only the remembered `hostId`, even if the host moved to a new DHCP
+address, and never silently switches rooms. After three scans without that
+room, the status line shows `Room "<name>" is gone`; the composer is disabled
+and `r` retries / `c` opens discovery again. Legacy 3.0 rooms have no
+`hostId`, so they are not sticky: reconnect falls back to normal discovery,
+which opens the picker on a TTY when several rooms answer (or auto-connects
+when exactly one does). `SERVER=<ip>` is an explicit address, so it bypasses
 discovery and room stickiness.
 
 ### Multi-line Messages

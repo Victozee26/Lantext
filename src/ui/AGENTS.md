@@ -97,9 +97,12 @@
   invent new semantics without updating both sides.
 - Room selection contract: initial discovery auto-connects only for exactly
   one room, or in non-TTY mode via the deterministic pick. A TTY client with
-  N>1 rooms renders `RoomPicker` and waits for `selectRoom()`. Reconnect never
-  opens the picker: it either finds the remembered `hostId` or emits
-  `roomLost` after three scans. The picker always shows IP:port and a short
+  N>1 rooms renders `RoomPicker` and waits for `selectRoom()`. Reconnect for a
+  room with a remembered `hostId` never opens the picker: it either finds that
+  `hostId` or emits `roomLost` after three scans. Legacy anonymous rooms have
+  no `hostId`, so reconnect falls back to normal discovery: a TTY client shows
+  the picker when several rooms answer and auto-connects when exactly one
+  does. The picker always shows IP:port and a short
   `hostId` prefix (or `legacy`) because room names are not unique. A
   major-version mismatch is a warning, never a block; the picker and the
   client status bar both show `⚠ host v<version>`.
